@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    font-family: "Segoe UI", sans-serif;
+    background: #121212;
+    color: #eee;
+  }
+  header {
+    padding: 16px 20px;
+    border-bottom: 1px solid #262626;
+  }
+  header h1 {
+    font-size: 16px;
+    margin: 0;
+  }
+  header p {
+    margin: 4px 0 0;
+    font-size: 12px;
+    color: #888;
+  }
+  .list {
+    padding: 12px;
+  }
+  .widget-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #1b1b1b;
+    border: 1px solid #262626;
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .widget-row .name {
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .widget-row .desc {
+    font-size: 12px;
+    color: #888;
+    margin-top: 2px;
+  }
+  button {
+    border: none;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .btn-add {
+    background: #00ff9c;
+    color: #0a0a0a;
+  }
+  .btn-remove {
+    background: #2a2a2a;
+    color: #eee;
+  }
+</style>
+</head>
+<body>
+  <header>
+    <h1>Deskly</h1>
+    <p>Add or remove desktop widgets. Closing this window keeps your widgets running — use the tray icon to bring it back.</p>
+  </header>
+
+  <div class="list">
+    <div class="widget-row">
+      <div>
+        <div class="name">Clock</div>
+        <div class="desc">Frameless always-on-top clock</div>
+      </div>
+      <button id="clockBtn" class="btn-add">Add</button>
+    </div>
+  </div>
+
+  <script>
+    const { invoke } = window.__TAURI__.core;
+    const clockBtn = document.getElementById("clockBtn");
+    let clockActive = false;
+
+    function render() {
+      clockBtn.textContent = clockActive ? "Remove" : "Add";
+      clockBtn.className = clockActive ? "btn-remove" : "btn-add";
+    }
+
+    clockBtn.addEventListener("click", async () => {
+      try {
+        await invoke(clockActive ? "remove_clock" : "add_clock");
+        clockActive = !clockActive;
+        render();
+      } catch (err) {
+        console.error("Deskly: failed to toggle clock widget:", err);
+      }
+    });
+
+    (async () => {
+      try {
+        clockActive = await invoke("get_state");
+        render();
+      } catch (err) {
+        console.error("Deskly: failed to load widget state:", err);
+      }
+    })();
+  </script>
+</body>
+</html>

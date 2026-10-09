@@ -1,0 +1,35 @@
+{
+  "productName": "Deskly",
+  "version": "0.1.0",
+  "identifier": "com.deskly.app",
+  "build": {
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "Deskly",
+        "url": "index.html",
+        "width": 360,
+        "height": 480,
+        "resizable": true,
+        "decorations": true,
+        "transparent": false,
+        "skipTaskbar": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/icon.ico",
+      "icons/icon.png"
+    ]
+  }
+}

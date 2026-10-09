@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    overflow: hidden;
+    -webkit-user-select: none;
+    user-select: none;
+    font-family: "Segoe UI", Consolas, sans-serif;
+  }
+
+  .widget {
+    width: 260px;
+    height: 140px;
+    background: rgba(20, 20, 20, 0.75);
+    border-radius: 16px;
+    backdrop-filter: blur(6px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #00ff9c;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    cursor: grab;
+  }
+
+  .time {
+    font-size: 34px;
+    font-weight: 600;
+    letter-spacing: 1px;
+  }
+
+  .date {
+    font-size: 13px;
+    opacity: 0.8;
+    margin-top: 4px;
+  }
+</style>
+</head>
+<body>
+  <div class="widget" id="widget">
+    <div class="time" id="time">--:--:--</div>
+    <div class="date" id="date">-</div>
+  </div>
+
+  <script>
+    const timeEl = document.getElementById("time");
+    const dateEl = document.getElementById("date");
+
+    function tick() {
+      const now = new Date();
+      timeEl.textContent = now.toLocaleTimeString("en-GB");
+      dateEl.textContent = now.toLocaleDateString("en-US", {
+        weekday: "long", day: "2-digit", month: "long", year: "numeric"
+      });
+    }
+    tick();
+    setInterval(tick, 1000);
+
+    // Tauri's window/core APIs are injected globally because
+    // "withGlobalTauri": true is set in tauri.conf.json
+    const { getCurrentWindow } = window.__TAURI__.window;
+    const { invoke } = window.__TAURI__.core;
+    const appWindow = getCurrentWindow();
+
+    // --- drag to move (native, no manual delta math needed) ---
+    const widget = document.getElementById("widget");
+    widget.addEventListener("mousedown", (e) => {
+      if (e.buttons === 1) {
+        appWindow.startDragging();
+      }
+    });
+
+    // --- right-click to close ---
+    // goes through the manager's remove_clock command so the manager
+    // window's Add/Remove button stays in sync, and state.json is updated
+    window.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      invoke("remove_clock");
+    });
+  </script>
+</body>
+</html>
