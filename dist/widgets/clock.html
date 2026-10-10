@@ -3,6 +3,28 @@
 <head>
 <meta charset="UTF-8" />
 <style>
+  @font-face { font-family: "Inter Tight"; font-weight: 500; src: url("../fonts/inter-tight-500.woff2") format("woff2"); }
+  @font-face { font-family: "Inter Tight"; font-weight: 700; src: url("../fonts/inter-tight-700.woff2") format("woff2"); }
+  @font-face { font-family: "Space Grotesk"; font-weight: 500; src: url("../fonts/space-grotesk-500.woff2") format("woff2"); }
+  @font-face { font-family: "Space Grotesk"; font-weight: 700; src: url("../fonts/space-grotesk-700.woff2") format("woff2"); }
+  @font-face { font-family: "Manrope"; font-weight: 500; src: url("../fonts/manrope-500.woff2") format("woff2"); }
+  @font-face { font-family: "Manrope"; font-weight: 700; src: url("../fonts/manrope-700.woff2") format("woff2"); }
+
+  :root {
+    --bg: 238 238 238;
+    --fg: 17 17 17;
+    --accent: 17 17 17;
+    --accent-fg: 238 238 238;
+    --alpha: 1;
+    --radius: 1.5rem;
+    --fw: 700;
+    --cell: .6;
+    --colon: .3;
+    --card-w: 32rem;
+    --time-size: 6rem;
+    --font: "Inter Tight", "Segoe UI", sans-serif;
+  }
+
   html, body {
     margin: 0;
     padding: 0;
@@ -10,78 +32,255 @@
     overflow: hidden;
     -webkit-user-select: none;
     user-select: none;
-    font-family: "Segoe UI", Consolas, sans-serif;
+    font-family: var(--font);
+    font-size: 14.4px; /* overwritten by the scale setting */
   }
 
-  .widget {
-    width: 260px;
-    height: 140px;
-    background: rgba(20, 20, 20, 0.75);
-    border-radius: 16px;
-    backdrop-filter: blur(6px);
+  /* #frame is what we measure to size the OS window; its padding leaves room for the shadow */
+  #frame { display: inline-block; padding: 1rem 1.1rem 1.4rem; }
+
+  .card {
+    box-sizing: border-box;
+    width: var(--card-w);
+    padding: 1.4rem 1.6rem 1.5rem;
+    background: rgb(var(--bg) / var(--alpha));
+    color: rgb(var(--fg));
+    border-radius: var(--radius);
+    box-shadow: 0 .35rem 1.1rem rgb(0 0 0 / .22);
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    color: #00ff9c;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    gap: .85rem;
     cursor: grab;
   }
+  .card:active { cursor: grabbing; }
 
+  /* ---- time: fixed-width cells so digits never jiggle ---- */
   .time {
-    font-size: 34px;
-    font-weight: 600;
-    letter-spacing: 1px;
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    font-size: var(--time-size);
+    font-weight: var(--fw);
+    line-height: .95;
+    white-space: nowrap;
+  }
+  .time .d { display: inline-block; width: calc(var(--cell) * 1em); text-align: center; }
+  .time .c { display: inline-block; width: calc(var(--colon) * 1em); text-align: center; position: relative; top: -.05em; }
+  .time .ap {
+    font-size: .26em;
+    margin-left: .25em;
+    opacity: .6;
+    letter-spacing: .02em;
   }
 
-  .date {
-    font-size: 13px;
-    opacity: 0.8;
-    margin-top: 4px;
+  .meta { display: flex; align-items: center; justify-content: space-between; gap: .75rem; min-height: 1.6rem; }
+  .date { font-size: .82rem; font-weight: 500; color: rgb(var(--fg) / .55); }
+  .card.minimal .meta { justify-content: center; }
+
+  .pill {
+    display: inline-flex;
+    padding: .18rem;
+    gap: .1rem;
+    border-radius: 999px;
+    background: rgb(var(--fg) / .08);
   }
+  .pill button {
+    all: unset;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: .68rem;
+    font-weight: 700;
+    padding: .28rem .65rem;
+    border-radius: 999px;
+    color: rgb(var(--fg) / .6);
+  }
+  .pill button.on { background: rgb(var(--accent)); color: rgb(var(--accent-fg)); }
+
+  /* ---- dashboard extras ---- */
+  .heading { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin-top: .35rem; }
+  .heading .city-name { font-size: 1.4rem; font-weight: 700; line-height: 1.1; }
+  .heading .tz-name { font-size: .7rem; font-weight: 500; color: rgb(var(--fg) / .5); text-align: right; }
+
+  .cities { display: grid; grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr)); gap: .55rem; }
+  .city {
+    display: flex;
+    flex-direction: column;
+    gap: .85rem;
+    padding: .7rem .75rem .65rem;
+    border-radius: .9rem;
+    background: rgb(var(--fg) / .06);
+    min-width: 0;
+  }
+  .city.hl { background: rgb(var(--accent)); color: rgb(var(--accent-fg)); }
+  .city .row { display: flex; align-items: center; justify-content: space-between; gap: .4rem; font-size: .62rem; font-weight: 500; opacity: .72; }
+  .city .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .city .off { flex-shrink: 0; }
+  .city .t { font-size: 1.45rem; font-weight: 700; line-height: 1; white-space: nowrap; }
+  .city .t .ap { font-size: .45em; margin-left: .2em; opacity: .65; }
+  .city .dn { display: flex; align-items: center; justify-content: flex-end; gap: .28rem; font-size: .6rem; font-weight: 500; opacity: .78; }
+  .city .dn svg { width: .8rem; height: .8rem; }
 </style>
 </head>
 <body>
-  <div class="widget" id="widget">
-    <div class="time" id="time">--:--:--</div>
-    <div class="date" id="date">-</div>
-  </div>
+  <div id="frame"><div class="card" id="card"></div></div>
 
+  <script src="../shared/clock-shared.js"></script>
   <script>
-    const timeEl = document.getElementById("time");
-    const dateEl = document.getElementById("date");
+    const CS = window.ClockShared;
+    const { invoke } = window.__TAURI__.core;
+    const { listen } = window.__TAURI__.event;
+    const { getCurrentWindow } = window.__TAURI__.window;
+    const appWindow = getCurrentWindow();
+
+    const frame = document.getElementById("frame");
+    const card = document.getElementById("card");
+    const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
+    let S = CS.merge({});
+    let saved = {};
+
+    const SUN = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5" fill="#f5b301"/><path d="M12 1v3M12 20v3M1 12h3M20 12h3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" stroke="#f5b301" stroke-width="2" stroke-linecap="round" fill="none"/></svg>';
+    const MOON = '<svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" fill="#9aa5ff"/></svg>';
+
+    // ---------- appearance ----------
+    function applyAppearance() {
+      const root = document.documentElement;
+      const t = CS.resolveTheme(S, darkQuery.matches);
+      const m = CS.FONT_METRICS[S.font][S.fontWeight];
+      root.style.fontSize = (16 * S.scale / 100) + "px";
+      root.style.setProperty("--bg", t.bg);
+      root.style.setProperty("--fg", t.fg);
+      root.style.setProperty("--accent", t.accent);
+      root.style.setProperty("--accent-fg", t.accentFg);
+      root.style.setProperty("--alpha", S.opacity / 100);
+      root.style.setProperty("--radius", (S.radius / 16) + "rem");
+      root.style.setProperty("--fw", S.fontWeight);
+      root.style.setProperty("--font", CS.FONTS[S.font].css);
+      root.style.setProperty("--cell", m.cell);
+      root.style.setProperty("--colon", m.colon);
+      root.style.setProperty("--card-w", CS.LAYOUT_WIDTH_REM[S.layout] + "rem");
+      root.style.setProperty("--time-size", CS.timeSizeRem(S) + "rem");
+    }
+
+    // ---------- structure (rebuilt when settings change) ----------
+    function buildStructure() {
+      const dash = S.layout === "dashboard";
+      const showPill = S.layout !== "minimal" && S.showToggle;
+      card.className = "card " + S.layout;
+
+      let html = '<div class="time" id="time"></div>';
+      html += '<div class="meta"><span class="date" id="date"></span>';
+      if (showPill) {
+        html += '<div class="pill" id="pill">' +
+          '<button data-h12="false">24h</button><button data-h12="true">12h</button></div>';
+      }
+      html += '</div>';
+      if (dash) {
+        html += '<div class="heading"><span class="city-name" id="cityName"></span><span class="tz-name" id="tzName"></span></div>';
+        html += '<div class="cities" id="cities"></div>';
+      }
+      card.innerHTML = html;
+    }
+
+    // ---------- per-second render ----------
+    function digitsHtml(str) {
+      let out = "";
+      for (const ch of str) out += ch === ":" ? '<span class="c">:</span>' : '<span class="d">' + ch + "</span>";
+      return out;
+    }
 
     function tick() {
       const now = new Date();
-      timeEl.textContent = now.toLocaleTimeString("en-GB");
-      dateEl.textContent = now.toLocaleDateString("en-US", {
-        weekday: "long", day: "2-digit", month: "long", year: "numeric"
+      const p = CS.timeParts(now, "local", S.hour12, S.showSeconds);
+      let str = p.h + ":" + p.m + (S.showSeconds ? ":" + p.s : "");
+      const timeEl = document.getElementById("time");
+      timeEl.innerHTML = digitsHtml(str) + (S.hour12 ? '<span class="ap">' + p.period + "</span>" : "");
+
+      document.getElementById("date").textContent = CS.dateText(now, "local", S.dateFormat);
+
+      const pill = document.getElementById("pill");
+      if (pill) {
+        for (const b of pill.children) b.classList.toggle("on", (b.dataset.h12 === "true") === S.hour12);
+      }
+
+      if (S.layout === "dashboard") {
+        document.getElementById("cityName").textContent = CS.displayName({ tz: "local" }, S);
+        document.getElementById("tzName").textContent = CS.tzLongName(now, "local");
+
+        const wrap = document.getElementById("cities");
+        wrap.style.setProperty("--n", Math.max(S.cities.length, 1));
+        wrap.style.display = S.cities.length ? "grid" : "none";
+        wrap.innerHTML = S.cities.map(c => {
+          const tp = CS.timeParts(now, c.tz, S.hour12, false);
+          const day = CS.isDay(now, c.tz);
+          return '<div class="city' + (c.tz === "local" ? " hl" : "") + '">' +
+            '<div class="row"><span class="nm">' + escapeHtml(CS.displayName(c, S)) + '</span>' +
+            '<span class="off">' + CS.utcOffset(now, c.tz) + '</span></div>' +
+            '<div class="t">' + tp.h + ":" + tp.m + (S.hour12 ? '<span class="ap">' + tp.period + "</span>" : "") + '</div>' +
+            '<div class="dn">' + (day ? SUN : MOON) + "<span>" + (day ? "Day" : "Night") + "</span></div></div>";
+        }).join("");
+      }
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+    }
+
+    // aligned to the wall-clock second so the display never lags
+    function loop() {
+      tick();
+      setTimeout(loop, 1000 - (Date.now() % 1000) + 5);
+    }
+
+    // ---------- window sizing ----------
+    let resizeQueued = false;
+    function scheduleResize() {
+      if (resizeQueued) return;
+      resizeQueued = true;
+      requestAnimationFrame(() => {
+        resizeQueued = false;
+        const r = frame.getBoundingClientRect();
+        invoke("resize_clock", { width: Math.ceil(r.width), height: Math.ceil(r.height) }).catch(() => {});
       });
     }
-    tick();
-    setInterval(tick, 1000);
+    new ResizeObserver(scheduleResize).observe(frame);
 
-    // Tauri's window/core APIs are injected globally because
-    // "withGlobalTauri": true is set in tauri.conf.json
-    const { getCurrentWindow } = window.__TAURI__.window;
-    const { invoke } = window.__TAURI__.core;
-    const appWindow = getCurrentWindow();
+    // ---------- settings ----------
+    function applySettings(partial) {
+      saved = partial || {};
+      S = CS.merge(saved);
+      applyAppearance();
+      buildStructure();
+      tick();
+      scheduleResize();
+    }
 
-    // --- drag to move (native, no manual delta math needed) ---
-    const widget = document.getElementById("widget");
-    widget.addEventListener("mousedown", (e) => {
-      if (e.buttons === 1) {
-        appWindow.startDragging();
-      }
+    darkQuery.addEventListener("change", () => { if (S.theme === "auto") applyAppearance(); });
+    listen("clock-settings", (e) => applySettings(e.payload));
+
+    // ---------- interaction ----------
+    card.addEventListener("mousedown", (e) => {
+      if (e.button !== 0 || e.target.closest("button")) return;
+      appWindow.startDragging();
     });
 
-    // --- right-click to close ---
-    // goes through the manager's remove_clock command so the manager
-    // window's Add/Remove button stays in sync, and state.json is updated
+    card.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-h12]");
+      if (!b) return;
+      invoke("patch_clock_settings", { patch: { hour12: b.dataset.h12 === "true" } });
+    });
+
+    // right-click closes the widget (goes through Rust so saved state stays in sync)
     window.addEventListener("contextmenu", (e) => {
       e.preventDefault();
       invoke("remove_clock");
     });
+
+    // ---------- boot ----------
+    applySettings({});              // defaults first so something renders immediately
+    loop();
+    invoke("get_clock_settings").then(applySettings).catch(() => {});
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(scheduleResize);
   </script>
 </body>
 </html>

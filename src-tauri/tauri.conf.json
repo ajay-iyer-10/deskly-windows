@@ -12,12 +12,14 @@
         "label": "main",
         "title": "Deskly",
         "url": "index.html",
-        "width": 360,
-        "height": 480,
+        "width": 440,
+        "height": 720,
         "resizable": true,
         "decorations": true,
         "transparent": false,
-        "skipTaskbar": false
+        "skipTaskbar": false,
+        "minWidth": 400,
+        "minHeight": 520
       }
     ],
     "security": {
