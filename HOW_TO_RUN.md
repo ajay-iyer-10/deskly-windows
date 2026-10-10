@@ -11,6 +11,9 @@ Step-by-step instructions to run Deskly on your Windows machine.
    If it's missing: https://developer.microsoft.com/microsoft-edge/webview2/
 4. **Node.js** (LTS) — https://nodejs.org
 
+Deskly needs a recent Rust (1.90 or newer). If you installed Rust a while ago, run
+`rustup update` first.
+
 After installing Rust, **close and reopen your terminal** so `cargo` is on your PATH.
 Check with:
 
@@ -39,9 +42,26 @@ the Deskly window opens. Click **Add** next to a widget to place it on your desk
   keep running.
 - **Tray icon** — right-click it for *Show Deskly* or *Quit*. Quit exits the
   app and closes all widgets.
-- Widgets you leave active are restored automatically next time you launch.
+- Widgets you leave active are restored automatically next time you launch,
+  in the same spot you left them.
 
-## 4. Build an installer
+## 4. Customizing the clock
+
+Click **Customize** next to the Clock in Deskly. Every change shows up on the
+widget instantly (add the clock first to see it).
+
+- **Layout:** Minimal, Standard, or Dashboard (with the world cities row)
+- **Time & date:** 12h/24h, seconds, the on-widget 12h/24h switch, date format
+- **Appearance:** theme (Light / Dark / Auto / Custom), accent color, font,
+  digit weight, size, opacity, corner radius
+- **World cities:** set a label for your own location (e.g. your city), then add,
+  remove and reorder up to 4 more. Type a city (Tokyo, Mumbai) or a time zone
+  (Europe/Paris)
+
+The 12h/24h switch on the widget itself also works with a click.
+**Reset clock to defaults** at the bottom puts everything back.
+
+## 5. Build an installer
 
 ```
 npm run build
@@ -58,10 +78,12 @@ The installer and executable are created under
 | `icon.ico not found` | Make sure `src-tauri/icons/icon.ico` exists (it ships with the repo). |
 | Clicking **Add** does nothing after a code change | Stop `npm run dev` and start it again. Rust changes need a rebuild. |
 | A widget window seems stuck from an old run | End any leftover `deskly.exe` in Task Manager and relaunch. |
+| Widget doesn't show after a position change | If you unplug a monitor, Deskly puts the widget back at the default spot on next launch. |
 | First build is slow | Normal. Rust compiles all dependencies once; later runs are much faster. |
 
 ## Where Deskly stores its data
 
-Widget on/off state is saved as `widgets_state.json` in your Windows app config
-folder (under `%APPDATA%`, in a folder named after the app identifier
-`com.deskly.app`). Delete that file to reset Deskly to a clean state.
+Which widgets are on, their settings and their positions are saved as
+`widgets_state.json` in your Windows app config folder (under `%APPDATA%`, in a
+folder named after the app identifier `com.deskly.app`). Delete that file to
+reset Deskly to a clean state.
