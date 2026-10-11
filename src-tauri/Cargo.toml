@@ -10,6 +10,8 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = ["tray-icon"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+sysinfo = { version = "0.37", default-features = false, features = ["system", "component"] }
+ureq = { version = "2", default-features = false }
 
 [[bin]]
 name = "deskly"

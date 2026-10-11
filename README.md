@@ -3,8 +3,9 @@
 **Free, open source desktop widgets for Windows.**
 
 Deskly puts small, good-looking widgets right on your desktop and keeps them
-out of your way. Add what you want, drag it where you like, and forget about it.
-It lives in your system tray and remembers your setup between launches.
+out of your way. Add what you want, drag it where you like, pin it behind your
+windows, and forget about it. It lives in your system tray and remembers your
+setup between launches.
 
 Built with [Tauri](https://tauri.app), so it stays lightweight instead of
 shipping a full browser for every widget.
@@ -14,11 +15,12 @@ shipping a full browser for every widget.
 ## Features
 
 - **Free and open source** — MIT licensed, no ads, no accounts, no tracking
-- **Frameless, always-on-top widgets** with a clean, modern look
+- **Frameless widgets** with a clean, modern look
+- **Pin to desktop** — keep any widget behind your other windows instead of on top
 - **Highly customizable** — layouts, themes, fonts, colors, size, opacity and more, with live preview
 - **Drag anywhere** — move widgets with the mouse, right-click to close
 - **Tray-first** — close the manager window and your widgets keep running
-- **Remembers your setup** — active widgets, settings and positions come back on next launch
+- **Remembers your setup** — active widgets, settings, pin state and positions come back on next launch
 - **Works offline** — fonts are bundled, no network calls
 - **Web-tech widgets** — each widget is plain HTML, CSS and JavaScript, so
   they are easy to build and restyle
@@ -28,15 +30,35 @@ shipping a full browser for every widget.
 | Widget | Description |
 |---|---|
 | Clock | Big bold time with date, 12h/24h switch and a world cities row |
+| Pomodoro | Focus timer with short and long breaks, session dots, progress bar and a chime |
+| System | Live CPU and RAM usage with history graphs, plus CPU/GPU temperatures |
 
-**Clock customization**
+**Clock**
 
 - **Layouts:** Minimal, Standard, Dashboard (adds world cities with UTC offsets and day/night)
 - **Time and date:** 12h/24h, seconds on/off, four date formats
-- **Look:** Light, Dark, Auto (follows Windows) or Custom colors, accent color, 3 bundled fonts plus system font, digit weight, size, opacity, corner radius
 - **World cities:** add, remove and reorder up to 4 cities, pick from any IANA time zone or type a city name
 
-More are planned, see the roadmap below.
+**Pomodoro**
+
+- **Layouts:** Standard (mode switch, progress bar, session dots, today's count) or Compact
+- **Timer:** focus 1–90 min, short break, long break, sessions before a long break
+- **Behavior:** optional auto-start for breaks and focus sessions, generated chime when a session ends
+- **Survives restarts:** a running timer keeps its place if you close and reopen Deskly
+
+**System**
+
+- **Live stats:** CPU usage (with model and core count), RAM used/total/free, each with a history graph
+- **Temperatures:** CPU and GPU, in °C or °F, turning amber and then red as they climb (you set the threshold)
+- **Layouts:** Standard or Compact, refresh every 1–10 seconds
+- **Idle-friendly:** it only samples while the widget is on your desktop
+- **About temperatures:** Windows doesn't let normal apps read CPU/GPU temperatures. Deskly reads them from
+  [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) when it's running
+  (setup in [HOW_TO_RUN.md](HOW_TO_RUN.md)), and otherwise shows whatever sensor data Windows exposes
+
+**Every widget** shares the same appearance controls: Light / Dark / Auto (follows
+Windows) / Custom colors, accent color, 3 bundled fonts plus the system font,
+digit weight, size, opacity and corner radius.
 
 ## Getting started
 
@@ -57,40 +79,59 @@ HOW_TO_RUN.md walks through each.
 ```
 deskly/
 ├─ dist/
-│  ├─ index.html          # Deskly manager window (add/remove, customize)
+│  ├─ index.html              # Deskly manager window (generated from widget schemas)
 │  ├─ shared/
-│  │  └─ clock-shared.js  # Clock settings schema, defaults, time/date logic
-│  ├─ fonts/              # Bundled open-licensed fonts
+│  │  ├─ common.js            # Fonts, themes, appearance, shared widget boot logic
+│  │  ├─ widget.css           # Shared widget look (card, pills, buttons, big numbers)
+│  │  ├─ widget-registry.js   # Every widget's name + settings schema
+│  │  ├─ clock-shared.js      # Clock defaults, time zones, formatting
+│  │  ├─ pomodoro-shared.js   # Pomodoro defaults and timer state machine
+│  │  └─ system-shared.js     # System widget defaults, units, severity, sparklines
+│  ├─ fonts/                  # Bundled open-licensed fonts
 │  └─ widgets/
-│     └─ clock.html       # One file per widget
+│     ├─ clock.html           # One page per widget
+│     ├─ pomodoro.html
+│     └─ system.html
 └─ src-tauri/
-   ├─ src/main.rs         # Window management, tray icon, saved state
-   ├─ capabilities/       # Per-window permissions
-   └─ tauri.conf.json     # App and window configuration
+   ├─ src/main.rs             # Widget registry, windows, tray, saved state
+   ├─ src/sampler.rs          # CPU / RAM / temperature sampling (System widget)
+   ├─ src/temps.rs            # Temperature parsing and selection (unit-tested)
+   ├─ capabilities/           # Window permissions
+   └─ tauri.conf.json         # App and manager window configuration
 ```
 
 ## Adding your own widget
 
-1. Create `dist/widgets/yourwidget.html` (copy `clock.html` as a starting point).
-2. In `src-tauri/src/main.rs`, add an open/close function pair and
-   `add_` / `remove_` commands for it, mirroring the clock ones, and register
-   them in `generate_handler![...]`. Widget settings are free-form JSON, so a
-   new widget can reuse the `patch_` / `reset_` settings commands pattern
-   without any schema changes in Rust.
-3. Add the widget's window label to `src-tauri/capabilities/default.json`.
-4. Add a row for it in `dist/index.html`.
+Spawning, positions, saved settings, pinning and live updates are all generic,
+so a new widget is three small pieces:
 
-Once there are a handful of widgets this will be refactored into a generic
-widget registry, so adding one becomes a single file.
+1. **`src-tauri/src/main.rs`** — add one entry to the `WIDGETS` list: an id, a
+   window title, the page url, a starting size and a first-launch position.
+2. **`dist/widgets/<id>.html`** — the widget itself. Link `shared/widget.css`,
+   load `shared/common.js`, and call `WidgetCommon.bootstrap({ id, frame, card, onSettings })`.
+   That gives you window sizing, dragging, right-click to close and live settings
+   for free. `clock.html` and `pomodoro.html` are good starting points.
+3. **`dist/shared/widget-registry.js`** — add the widget's name, description and a
+   settings schema (sections and fields: segmented controls, toggles, sliders,
+   selects, colors, text). Deskly builds the Customize panel from it, including the
+   shared appearance section. No UI code needed.
+
+Widget settings are free-form JSON owned by the frontend, so adding or changing a
+setting never needs a Rust change. A widget that needs data only Rust can get (like
+the System widget) adds its own `#[tauri::command]` and polls it from its page.
 
 ## Roadmap
 
 - [x] Remember widget positions between launches
-- [x] Per-widget settings (clock: layouts, themes, fonts, colors, size, opacity, cities)
+- [x] Per-widget settings with live preview
+- [x] Generic widget registry
+- [x] Pin to desktop
+- [x] System widget: CPU, RAM and temperatures
+- [ ] More offline widgets: sticky notes, to-do, countdown, calendar
+- [ ] System widget extras: per-core CPU, GPU load, disk and network
+- [ ] Shared data layer for network widgets (weather, F1, tickers) with caching
 - [ ] Sunrise / sunset line on the clock
 - [ ] Real desktop blur (Windows acrylic) option
-- [ ] More widgets: weather, system stats, notes, calendar
-- [ ] Generic widget registry / plugin folder
 - [ ] Launch on Windows startup
 - [ ] Installer releases on GitHub
 
@@ -104,6 +145,10 @@ issue first so we can talk it through. New widgets are a great first contributio
 Bundled fonts are licensed under the SIL Open Font License 1.1 (license files in
 `dist/fonts/`): [Inter Tight](https://github.com/rsms/inter), [Space Grotesk](https://github.com/floriankarsten/space-grotesk)
 and [Manrope](https://github.com/sharanda/manrope), packaged via [Fontsource](https://fontsource.org).
+
+CPU and RAM stats use the [sysinfo](https://github.com/GuillaumeGomez/sysinfo) crate. CPU/GPU temperatures can
+come from [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) (MPL-2.0), which
+you run separately. Deskly doesn't bundle or redistribute it.
 
 ## License
 

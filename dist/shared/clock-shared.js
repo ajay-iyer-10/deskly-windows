@@ -1,36 +1,19 @@
-/* Shared between the Deskly manager window and the clock widget.
-   Pure logic only (no DOM), so it can be tested in Node. */
+/* Clock-specific logic: settings schema/defaults, time zones, formatting.
+   Pure functions only (no DOM), so it can be tested in Node.
+   Fonts, themes and appearance live in common.js. */
 (function (root) {
   "use strict";
-
-  const FONTS = {
-    "inter-tight":   { label: "Inter Tight",   css: '"Inter Tight","Segoe UI",sans-serif' },
-    "space-grotesk": { label: "Space Grotesk", css: '"Space Grotesk","Segoe UI",sans-serif' },
-    "manrope":       { label: "Manrope",       css: '"Manrope","Segoe UI",sans-serif' },
-    "system":        { label: "System (Segoe UI)", css: '"Segoe UI Variable Display","Segoe UI",sans-serif' }
-  };
-
-  // Measured digit/colon cell widths (in em) so the time never jiggles.
-  const FONT_METRICS = {"inter-tight": {"500": {"cell": 0.581, "colon": 0.28}, "700": {"cell": 0.623, "colon": 0.325}}, "space-grotesk": {"500": {"cell": 0.613, "colon": 0.296}, "700": {"cell": 0.616, "colon": 0.318}}, "manrope": {"500": {"cell": 0.595, "colon": 0.334}, "700": {"cell": 0.625, "colon": 0.363}}, "system": {"500": {"cell": 0.53, "colon": 0.27}, "700": {"cell": 0.54, "colon": 0.28}}};
+  const C = root.WidgetCommon || (typeof require !== "undefined" ? require("./common.js") : null);
 
   const LAYOUT_WIDTH_REM = { minimal: 17, standard: 21, dashboard: 32 };
   const MAX_CITIES = 4;
 
-  const DEFAULTS = {
+  const DEFAULTS = Object.assign({}, C.APPEARANCE_DEFAULTS, {
     layout: "dashboard",      // minimal | standard | dashboard
     hour12: false,
     showSeconds: true,
     showToggle: true,         // 12h/24h pill on the widget
     dateFormat: "long",       // long | short | numeric | off
-    theme: "light",           // light | dark | auto | custom
-    accent: "auto",           // "auto" or a hex color
-    customBg: "#eeeeee",
-    customText: "#111111",
-    font: "inter-tight",
-    fontWeight: 700,          // 500 | 700
-    scale: 90,                // percent
-    opacity: 100,             // percent
-    radius: 24,               // px at 100% scale
     homeLabel: "",            // blank = derived from your time zone
     cities: [
       { name: "Local", tz: "local" },
@@ -38,7 +21,7 @@
       { name: "London", tz: "Europe/London" },
       { name: "Tokyo", tz: "Asia/Tokyo" }
     ]
-  };
+  });
 
   // Typed shortcuts people actually type into the "add city" box.
   const CITY_ALIASES = {
@@ -57,8 +40,6 @@
     "Asia/Saigon": "Ho Chi Minh City", "Asia/Rangoon": "Yangon", "Europe/Kiev": "Kyiv"
   };
 
-  function clone(o) { return JSON.parse(JSON.stringify(o)); }
-
   function localTz() {
     try { return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"; }
     catch (e) { return "UTC"; }
@@ -76,41 +57,12 @@
   }
 
   function merge(saved) {
-    const S = Object.assign(clone(DEFAULTS), saved && typeof saved === "object" ? saved : {});
-    if (!Array.isArray(S.cities)) S.cities = clone(DEFAULTS.cities);
-    S.cities = S.cities
-      .filter(c => c && typeof c.tz === "string")
-      .slice(0, MAX_CITIES);
-    if (!FONTS[S.font]) S.font = DEFAULTS.font;
-    if (S.fontWeight !== 500 && S.fontWeight !== 700) S.fontWeight = 700;
+    const S = Object.assign(C.clone(DEFAULTS), saved && typeof saved === "object" ? saved : {});
+    C.normalizeAppearance(S);
+    if (!Array.isArray(S.cities)) S.cities = C.clone(DEFAULTS.cities);
+    S.cities = S.cities.filter(c => c && typeof c.tz === "string").slice(0, MAX_CITIES);
     if (!LAYOUT_WIDTH_REM[S.layout]) S.layout = DEFAULTS.layout;
     return S;
-  }
-
-  // ---------- colors ----------
-  function hexToRgb(hex) {
-    const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || "").trim());
-    if (!m) return [17, 17, 17];
-    const n = parseInt(m[1], 16);
-    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-  }
-  function luminance(rgb) {
-    const f = c => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
-    return 0.2126 * f(rgb[0]) + 0.7152 * f(rgb[1]) + 0.0722 * f(rgb[2]);
-  }
-  function readableOn(rgb) { return luminance(rgb) > 0.4 ? [17, 17, 17] : [255, 255, 255]; }
-  const triple = rgb => rgb.join(" ");
-
-  function resolveTheme(S, prefersDark) {
-    let t = S.theme;
-    if (t === "auto") t = prefersDark ? "dark" : "light";
-    let bg, fg;
-    if (t === "dark") { bg = [24, 24, 24]; fg = [245, 245, 245]; }
-    else if (t === "custom") { bg = hexToRgb(S.customBg); fg = hexToRgb(S.customText); }
-    else { bg = [238, 238, 238]; fg = [17, 17, 17]; }
-    const accent = S.accent === "auto" ? fg : hexToRgb(S.accent);
-    const accentFg = S.accent === "auto" ? bg : readableOn(accent);
-    return { bg: triple(bg), fg: triple(fg), accent: triple(accent), accentFg: triple(accentFg) };
   }
 
   // ---------- time ----------
@@ -179,15 +131,10 @@
   }
 
   // ---------- sizing ----------
-  // Font size (rem) at which the time row exactly fills the card's inner width.
   function timeSizeRem(S) {
-    const m = FONT_METRICS[S.font][S.fontWeight];
     const digits = S.showSeconds ? 6 : 4;
     const colons = S.showSeconds ? 2 : 1;
-    let em = digits * m.cell + colons * m.colon;
-    if (S.hour12) em += 0.45;               // room for the AM/PM tag
-    const inner = LAYOUT_WIDTH_REM[S.layout] - 3.2; // card padding
-    return Math.min(inner / em, 9);
+    return C.timeSizeRem(S, LAYOUT_WIDTH_REM[S.layout], digits, colons, S.hour12 ? 0.45 : 0);
   }
 
   // ---------- timezone lookup for the "add city" box ----------
@@ -211,9 +158,9 @@
   }
 
   root.ClockShared = {
-    FONTS, FONT_METRICS, LAYOUT_WIDTH_REM, MAX_CITIES, DEFAULTS,
-    clone, localTz, cityFromTz, displayName, merge,
-    resolveTheme, timeParts, hour24, isDay, utcOffset, tzLongName, dateText,
+    LAYOUT_WIDTH_REM, MAX_CITIES, DEFAULTS,
+    localTz, cityFromTz, displayName, merge,
+    timeParts, hour24, isDay, utcOffset, tzLongName, dateText,
     timeSizeRem, allTimeZones, resolveCity
   };
   if (typeof module !== "undefined") module.exports = root.ClockShared;

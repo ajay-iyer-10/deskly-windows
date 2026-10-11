@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<link rel="stylesheet" href="../shared/widget.css" />
+<style>
+  .grid { display: grid; grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); gap: .55rem; }
+  .stat { display: flex; flex-direction: column; gap: .4rem; padding: .75rem .85rem .7rem; border-radius: .9rem; background: rgb(var(--fg) / .06); min-width: 0; }
+  .stat .row { display: flex; align-items: center; justify-content: space-between; gap: .4rem; font-size: .62rem; font-weight: 500; opacity: .72; }
+  .stat .row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .stat .row .ttl { font-weight: 700; letter-spacing: .04em; }
+
+  .big { display: flex; align-items: baseline; font-size: 2.5rem; font-weight: var(--fw); line-height: 1; white-space: nowrap; }
+  .big .d { display: inline-block; width: calc(var(--cell) * 1em); text-align: center; }
+  .big .unit { font-size: .42em; margin-left: .12em; opacity: .6; font-weight: 700; }
+  .card.compact .big { font-size: 1.7rem; }
+
+  .spark { width: 100%; height: 1.5rem; display: block; overflow: visible; }
+  .spark .sl { fill: none; stroke: currentColor; stroke-width: 1.6; vector-effect: non-scaling-stroke; stroke-linejoin: round; stroke-linecap: round; }
+  .spark .sf { fill: currentColor; opacity: .14; }
+  .sub { font-size: .62rem; font-weight: 500; opacity: .6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .temps { display: grid; grid-template-columns: repeat(var(--tn, 2), minmax(0, 1fr)); gap: .55rem; }
+  .temp { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; padding: .6rem .85rem; border-radius: .9rem; background: rgb(var(--fg) / .06); }
+  .temp .lbl { font-size: .62rem; font-weight: 700; letter-spacing: .04em; opacity: .72; }
+  .temp .val { font-size: 1.5rem; font-weight: var(--fw); line-height: 1; white-space: nowrap; }
+  .temp .val small { font-size: .5em; font-weight: 700; opacity: .6; margin-left: .08em; }
+  .hint { font-size: .66rem; line-height: 1.35; }
+
+  /* load colors: normal uses the accent, then amber, then red */
+  .sev-ok { color: rgb(var(--accent)); }
+  .sev-warn { color: #f5a524; }
+  .sev-hot { color: #ef4444; }
+  .big, .temp .val { color: rgb(var(--fg)); }
+  .big.sev-warn, .temp .val.sev-warn { color: #f5a524; }
+  .big.sev-hot, .temp .val.sev-hot { color: #ef4444; }
+</style>
+</head>
+<body>
+  <div id="frame"><div class="card" id="card"></div></div>
+
+  <script src="../shared/common.js"></script>
+  <script src="../shared/system-shared.js"></script>
+  <script>
+    const WC = window.WidgetCommon, SS = window.SystemShared;
+    const { invoke } = window.__TAURI__.core;
+    const card = document.getElementById("card");
+    const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
+    let S = SS.merge({});
+    let boot = null;
+    let latest = null, lastError = "", polls = 0;
+    const hist = { cpu: [], mem: [] };
+    let timer = null;
+
+    function applyAppearance() {
+      WC.applyAppearance(S, darkQuery.matches);
+      document.documentElement.style.setProperty("--card-w", SS.LAYOUT_WIDTH_REM[S.layout] + "rem");
+    }
+
+    // ---------- pieces ----------
+    function bigNumber(v, sev) {
+      const str = v == null ? "–" : String(Math.round(v));
+      return '<div class="big sev-' + sev + '">' + (v == null ? '<span class="d">–</span>' : WC.digitsHtml(str)) + '<span class="unit">%</span></div>';
+    }
+
+    function spark(values, sev) {
+      if (!S.showSparklines || S.layout === "compact") return "";
+      const p = SS.sparkline(values);
+      return '<svg class="spark sev-' + sev + '" viewBox="0 0 100 24" preserveAspectRatio="none"><path class="sf" d="' + p.fill + '"/><path class="sl" d="' + p.line + '"/></svg>';
+    }
+
+    function tempCard(t) {
+      const sev = SS.tempSeverity(t.celsius, S.warnTemp);
+      return '<div class="temp"><span class="lbl">' + WC.escapeHtml(t.label.toUpperCase()) + " TEMP</span>" +
+        '<span class="val sev-' + sev + '">' + SS.toUnit(t.celsius, S.tempUnit) + "<small>°" + S.tempUnit + "</small></span></div>";
+    }
+
+    // ---------- render ----------
+    function render() {
+      const d = latest;
+      const cpu = d ? d.cpuPercent : null;
+      const memPct = d ? d.memPercent : null;
+      const cpuSev = cpu == null ? "ok" : SS.usageSeverity(cpu);
+      const memSev = memPct == null ? "ok" : SS.usageSeverity(memPct);
+      const temps = d ? d.temps : [];
+      const compact = S.layout === "compact";
+      let html = "";
+
+      if (compact) {
+        const t = temps[0];
+        const tSev = t ? SS.tempSeverity(t.celsius, S.warnTemp) : "ok";
+        const cols = S.showTemps ? 3 : 2;
+        html += '<div class="grid" style="--cols:' + cols + '">' +
+          '<div class="stat"><div class="row"><span class="ttl">CPU</span></div>' + bigNumber(cpu, cpuSev) + "</div>" +
+          '<div class="stat"><div class="row"><span class="ttl">RAM</span></div>' + bigNumber(memPct, memSev) + "</div>" +
+          (S.showTemps ? '<div class="stat"><div class="row"><span class="ttl">' + (t ? WC.escapeHtml(t.label.toUpperCase()) : "TEMP") + "</span></div>" +
+            '<div class="big sev-' + tSev + '">' + (t ? WC.digitsHtml(String(SS.toUnit(t.celsius, S.tempUnit))) : '<span class="d">–</span>') + '<span class="unit">°' + S.tempUnit + "</span></div></div>" : "") +
+          "</div>";
+      } else {
+        html += '<div class="grid" style="--cols:2">' +
+          '<div class="stat"><div class="row"><span class="ttl">CPU</span><span>' + (d && d.cores ? d.cores + (d.cores === 1 ? " core" : " cores") : "") + "</span></div>" +
+            bigNumber(cpu, cpuSev) + spark(hist.cpu, cpuSev) + '<div class="sub">' + (d ? WC.escapeHtml(d.cpuName || "") : "") + "</div></div>" +
+          '<div class="stat"><div class="row"><span class="ttl">RAM</span><span>' + (d ? SS.gb(d.memUsed) + " / " + SS.gb(d.memTotal) + " GB" : "") + "</span></div>" +
+            bigNumber(memPct, memSev) + spark(hist.mem, memSev) + '<div class="sub">' + (d ? SS.gb(d.memTotal - d.memUsed) + " GB free" : "") + "</div></div>" +
+          "</div>";
+        if (S.showTemps && temps.length) {
+          html += '<div class="temps" style="--tn:' + temps.length + '">' + temps.map(tempCard).join("") + "</div>";
+        }
+      }
+
+      if (S.showTemps) {
+        const hint = lastError ? "Couldn't read system stats." : SS.tempHint(d ? d.tempStatus : "none", polls);
+        if (hint) html += '<div class="muted hint">' + WC.escapeHtml(hint) + "</div>";
+      }
+      card.className = "card " + S.layout;
+      card.innerHTML = html;
+    }
+
+    // ---------- polling ----------
+    async function poll() {
+      clearTimeout(timer);
+      try {
+        latest = await invoke("get_system_stats", { lhmPort: S.lhmPort });
+        lastError = "";
+        polls++;
+        SS.pushHistory(hist.cpu, latest.cpuPercent);
+        SS.pushHistory(hist.mem, latest.memPercent);
+      } catch (e) {
+        lastError = String(e);
+      }
+      render();
+      if (boot) boot.scheduleResize();
+      timer = setTimeout(poll, S.refreshSec * 1000);
+    }
+
+    function onSettings(partial, initial) {
+      const next = SS.merge(partial);
+      const restart = SS.pollKey(next) !== SS.pollKey(S);
+      S = next;
+      applyAppearance();
+      render();
+      if (boot) boot.scheduleResize();
+      if (initial || restart) { clearTimeout(timer); timer = setTimeout(poll, 50); }
+    }
+
+    darkQuery.addEventListener("change", () => { if (S.theme === "auto") applyAppearance(); });
+
+    applyAppearance();
+    render();
+    boot = WC.bootstrap({ id: "system", frame: document.getElementById("frame"), card, onSettings });
+  </script>
+</body>
+</html>

@@ -8,6 +8,7 @@
   html, body { margin: 0; height: 100%; font-family: "Segoe UI", sans-serif; background: #121212; color: #eee; }
   body { display: flex; flex-direction: column; }
   [hidden] { display: none !important; }
+  .view { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 
   header { padding: 16px 20px; border-bottom: 1px solid #262626; display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
   header h1 { font-size: 16px; margin: 0; }
@@ -15,11 +16,12 @@
   #backBtn { background: #1f1f1f; color: #eee; padding: 6px 10px; font-size: 16px; line-height: 1; }
 
   .scroll { flex: 1; overflow-y: auto; }
-  .list { padding: 12px; }
+  .list { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
   .widget-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: #1b1b1b; border: 1px solid #262626; border-radius: 10px; padding: 14px 16px; }
   .widget-row .name { font-size: 14px; font-weight: 600; }
   .widget-row .desc { font-size: 12px; color: #888; margin-top: 2px; }
-  .actions { display: flex; gap: 8px; }
+  .pin { display: inline-flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 12px; color: #aaa; cursor: pointer; }
+  .actions { display: flex; gap: 8px; flex-shrink: 0; }
 
   button { border: none; border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
   .btn-add { background: #00ff9c; color: #0a0a0a; }
@@ -44,13 +46,16 @@
   select, input[type=text] { background: #1b1b1b; color: #eee; border: 1px solid #2c2c2c; border-radius: 8px; padding: 7px 10px; font-size: 13px; font-family: inherit; min-width: 150px; }
   input[type=text]::placeholder { color: #666; }
   input[type=color] { width: 38px; height: 30px; padding: 0; border: 1px solid #2c2c2c; border-radius: 8px; background: #1b1b1b; cursor: pointer; }
-  input[type=checkbox] { width: 38px; height: 22px; appearance: none; background: #333; border-radius: 999px; position: relative; cursor: pointer; transition: background .15s; }
+  input[type=checkbox] { flex-shrink: 0; width: 38px; height: 22px; appearance: none; background: #333; border-radius: 999px; position: relative; cursor: pointer; transition: background .15s; }
   input[type=checkbox]::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #ddd; transition: transform .15s; }
   input[type=checkbox]:checked { background: #00ff9c; }
   input[type=checkbox]:checked::after { transform: translateX(16px); background: #0a0a0a; }
+  input[type=checkbox].sm { width: 30px; height: 18px; }
+  input[type=checkbox].sm::after { top: 3px; left: 3px; width: 12px; height: 12px; }
+  input[type=checkbox].sm:checked::after { transform: translateX(12px); }
   .range { display: flex; align-items: center; gap: 10px; }
   input[type=range] { width: 150px; accent-color: #00ff9c; }
-  .range .val { width: 42px; text-align: right; font-size: 12px; color: #999; font-variant-numeric: tabular-nums; }
+  .range .val { width: 58px; text-align: right; font-size: 12px; color: #999; font-variant-numeric: tabular-nums; }
   .colors { display: flex; align-items: center; gap: 8px; }
   .colors span { font-size: 11px; color: #777; }
 
@@ -69,284 +74,312 @@
 <body>
 
 <!-- ============ widget list ============ -->
-<div id="viewList" style="display:flex;flex-direction:column;flex:1;min-height:0">
+<div id="viewList" class="view">
   <header>
     <div>
       <h1>Deskly</h1>
       <p>Add or remove desktop widgets. Closing this window keeps your widgets running — use the tray icon to bring it back.</p>
     </div>
   </header>
-  <div class="scroll">
-    <div class="list">
-      <div class="widget-row">
-        <div>
-          <div class="name">Clock</div>
-          <div class="desc">Time, date and world cities</div>
-        </div>
-        <div class="actions">
-          <button id="customizeBtn" class="btn-ghost">Customize</button>
-          <button id="clockBtn" class="btn-add">Add</button>
-        </div>
-      </div>
-    </div>
-  </div>
+  <div class="scroll"><div class="list" id="widgetList"></div></div>
 </div>
 
-<!-- ============ clock settings ============ -->
-<div id="viewClock" hidden style="display:flex;flex-direction:column;flex:1;min-height:0">
+<!-- ============ widget settings ============ -->
+<div id="viewSettings" class="view" hidden>
   <header>
     <button id="backBtn" title="Back">‹</button>
     <div>
-      <h1>Clock</h1>
+      <h1 id="settingsTitle"></h1>
       <p>Changes apply to the widget live.</p>
     </div>
   </header>
   <div class="scroll">
     <div class="panel">
-
       <div class="hint" id="inactiveHint" hidden>
-        <span>The clock isn't on your desktop yet.</span>
+        <span>This widget isn't on your desktop yet.</span>
         <button id="hintAdd" class="btn-add">Add it</button>
       </div>
-
-      <section>
-        <h2>Layout</h2>
-        <div class="field">
-          <span class="lbl">Style<span class="sub">Dashboard adds a world cities row</span></span>
-          <div class="seg" data-key="layout">
-            <button data-v="minimal">Minimal</button>
-            <button data-v="standard">Standard</button>
-            <button data-v="dashboard">Dashboard</button>
-          </div>
-        </div>
-      </section>
-
-      <section>
-        <h2>Time &amp; date</h2>
-        <div class="field">
-          <span class="lbl">Hour format</span>
-          <div class="seg" data-key="hour12" data-type="bool">
-            <button data-v="false">24h</button>
-            <button data-v="true">12h</button>
-          </div>
-        </div>
-        <div class="field">
-          <label for="showSeconds">Show seconds</label>
-          <input type="checkbox" id="showSeconds" data-key="showSeconds" />
-        </div>
-        <div class="field">
-          <span class="lbl">12h/24h switch on widget<span class="sub">Not shown in the minimal layout</span></span>
-          <input type="checkbox" id="showToggle" data-key="showToggle" />
-        </div>
-        <div class="field">
-          <label for="dateFormat">Date format</label>
-          <select id="dateFormat" data-key="dateFormat">
-            <option value="long">Monday, Mar 24 2025</option>
-            <option value="short">Mon, 24 Mar</option>
-            <option value="numeric">24/03/2025</option>
-            <option value="off">Hidden</option>
-          </select>
-        </div>
-      </section>
-
-      <section>
-        <h2>Appearance</h2>
-        <div class="field">
-          <span class="lbl">Theme</span>
-          <div class="seg" data-key="theme">
-            <button data-v="light">Light</button>
-            <button data-v="dark">Dark</button>
-            <button data-v="auto">Auto</button>
-            <button data-v="custom">Custom</button>
-          </div>
-        </div>
-        <div class="field" id="customColors" hidden>
-          <span class="lbl">Custom colors</span>
-          <div class="colors">
-            <span>Background</span><input type="color" data-key="customBg" />
-            <span>Text</span><input type="color" data-key="customText" />
-          </div>
-        </div>
-        <div class="field">
-          <span class="lbl">Accent<span class="sub">Highlighted city and active switch</span></span>
-          <div class="colors">
-            <input type="color" id="accentColor" data-key="accent" />
-            <div class="seg" id="accentAutoSeg"><button id="accentAuto">Auto</button></div>
-          </div>
-        </div>
-        <div class="field">
-          <label for="font">Font</label>
-          <select id="font" data-key="font"></select>
-        </div>
-        <div class="field">
-          <span class="lbl">Digit weight</span>
-          <div class="seg" data-key="fontWeight" data-type="number">
-            <button data-v="500">Medium</button>
-            <button data-v="700">Bold</button>
-          </div>
-        </div>
-        <div class="field">
-          <span class="lbl">Size</span>
-          <div class="range"><input type="range" data-key="scale" min="50" max="200" step="5" /><span class="val" data-val="scale"></span></div>
-        </div>
-        <div class="field">
-          <span class="lbl">Opacity</span>
-          <div class="range"><input type="range" data-key="opacity" min="20" max="100" step="5" /><span class="val" data-val="opacity"></span></div>
-        </div>
-        <div class="field">
-          <span class="lbl">Corner radius</span>
-          <div class="range"><input type="range" data-key="radius" min="0" max="40" step="1" /><span class="val" data-val="radius"></span></div>
-        </div>
-      </section>
-
-      <section id="citySection">
-        <h2>World cities (dashboard)</h2>
-        <div class="field">
-          <span class="lbl">Your location label<span class="sub">Blank uses your time zone's city</span></span>
-          <input type="text" data-key="homeLabel" id="homeLabel" placeholder="e.g. Thane" />
-        </div>
-        <div id="cityList"></div>
-        <div class="add-row">
-          <input type="text" id="cityInput" list="tzlist" placeholder="Add a city, e.g. Tokyo or Europe/Paris" />
-          <datalist id="tzlist"></datalist>
-          <button id="cityAdd" class="btn-ghost">Add</button>
-        </div>
-        <div class="msg" id="cityMsg"></div>
-      </section>
-
-      <button class="btn-ghost reset" id="resetBtn">Reset clock to defaults</button>
+      <div id="settingsBody"></div>
+      <button class="btn-ghost reset" id="resetBtn">Reset to defaults</button>
     </div>
   </div>
 </div>
 
+<script src="shared/common.js"></script>
 <script src="shared/clock-shared.js"></script>
+<script src="shared/pomodoro-shared.js"></script>
+<script src="shared/system-shared.js"></script>
+<script src="shared/widget-registry.js"></script>
 <script>
-  const CS = window.ClockShared;
+  const CS = window.ClockShared;          // used by the cities editor
+  const REGISTRY = window.WidgetRegistry;
   const { invoke } = window.__TAURI__.core;
   const { listen } = window.__TAURI__.event;
-
   const $ = (sel) => document.querySelector(sel);
-  const viewList = $("#viewList"), viewClock = $("#viewClock");
-  const clockBtn = $("#clockBtn");
+  const esc = (s) => String(s).replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
 
-  let S = CS.merge({});
-  let clockActive = false;
+  let states = {};          // id -> { active, pinned }
+  let current = null;       // { def, S, fields: Map(key -> field), shows: [{el, field}], dims: [{el, section}] }
   let lastLocalPatch = 0;
   const zones = CS.allTimeZones();
 
-  // ---------------- navigation ----------------
-  function show(view) {
-    viewList.hidden = view !== "list";
-    viewClock.hidden = view !== "clock";
-    viewList.style.display = view === "list" ? "flex" : "none";
-    viewClock.style.display = view === "clock" ? "flex" : "none";
+  // ============================================================
+  // navigation
+  // ============================================================
+  function showView(name) {
+    $("#viewList").hidden = name !== "list";
+    $("#viewSettings").hidden = name !== "settings";
   }
-  $("#customizeBtn").addEventListener("click", () => { show("clock"); refreshUI(); });
-  $("#backBtn").addEventListener("click", () => show("list"));
+  $("#backBtn").addEventListener("click", () => { current = null; showView("list"); });
 
-  // ---------------- add / remove widget ----------------
-  function renderClockBtn() {
-    clockBtn.textContent = clockActive ? "Remove" : "Add";
-    clockBtn.className = clockActive ? "btn-remove" : "btn-add";
-    $("#inactiveHint").hidden = clockActive;
+  // ============================================================
+  // widget list
+  // ============================================================
+  async function refreshStates() {
+    try { states = await invoke("get_widget_states"); } catch (err) { console.error("Deskly: failed to load widget states:", err); }
+    renderList();
+    renderHint();
   }
-  async function toggleClock() {
-    try {
-      await invoke(clockActive ? "remove_clock" : "add_clock");
-      clockActive = !clockActive;
-      renderClockBtn();
-    } catch (err) {
-      console.error("Deskly: failed to toggle clock widget:", err);
+
+  function renderList() {
+    const list = $("#widgetList");
+    list.innerHTML = REGISTRY.map(def => {
+      const st = states[def.id] || { active: false, pinned: false };
+      return `<div class="widget-row" data-id="${def.id}">
+        <div>
+          <div class="name">${esc(def.name)}</div>
+          <div class="desc">${esc(def.description)}</div>
+          <label class="pin" title="Keeps this widget behind your other windows">
+            <input type="checkbox" class="sm" data-pin ${st.pinned ? "checked" : ""} /> Pin to desktop
+          </label>
+        </div>
+        <div class="actions">
+          <button class="btn-ghost" data-customize>Customize</button>
+          <button data-toggle class="${st.active ? "btn-remove" : "btn-add"}">${st.active ? "Remove" : "Add"}</button>
+        </div>
+      </div>`;
+    }).join("");
+  }
+
+  async function setActive(id, active) {
+    try { await invoke("set_widget_active", { id, active }); } catch (err) { console.error("Deskly: failed to toggle widget:", err); }
+    await refreshStates();
+  }
+
+  $("#widgetList").addEventListener("click", async (e) => {
+    const row = e.target.closest(".widget-row");
+    if (!row) return;
+    const id = row.dataset.id;
+    if (e.target.closest("[data-toggle]")) setActive(id, !(states[id] && states[id].active));
+    else if (e.target.closest("[data-customize]")) openSettings(id);
+  });
+
+  $("#widgetList").addEventListener("change", async (e) => {
+    const box = e.target.closest("[data-pin]");
+    if (!box) return;
+    const id = box.closest(".widget-row").dataset.id;
+    try { await invoke("set_widget_pinned", { id, pinned: box.checked }); } catch (err) { console.error("Deskly: failed to pin widget:", err); }
+    await refreshStates();
+  });
+
+  function renderHint() {
+    $("#inactiveHint").hidden = !current || !!(states[current.def.id] && states[current.def.id].active);
+  }
+  $("#hintAdd").addEventListener("click", () => current && setActive(current.def.id, true));
+
+  // ============================================================
+  // settings panel, built from the widget's schema
+  // ============================================================
+  async function openSettings(id) {
+    const def = REGISTRY.find(d => d.id === id);
+    if (!def) return;
+    let saved = {};
+    try { saved = await invoke("get_widget_settings", { id }); } catch (err) { console.error("Deskly: failed to load settings:", err); }
+    current = { def, S: def.merge(saved), fields: new Map(), shows: [], dims: [] };
+    $("#settingsTitle").textContent = def.name;
+    buildPanel();
+    refreshUI();
+    renderHint();
+    showView("settings");
+  }
+
+  function elFrom(html) {
+    const t = document.createElement("template");
+    t.innerHTML = html.trim();
+    return t.content.firstElementChild;
+  }
+
+  function labelHtml(f) {
+    return `<span class="lbl">${esc(f.label)}${f.sub ? `<span class="sub">${esc(f.sub)}</span>` : ""}</span>`;
+  }
+
+  function fieldEl(f) {
+    switch (f.type) {
+      case "seg":
+        return elFrom(`<div class="field">${labelHtml(f)}<div class="seg" data-key="${f.key}">${
+          f.options.map((o, i) => `<button data-i="${i}">${esc(o.label)}</button>`).join("")}</div></div>`);
+      case "toggle":
+        return elFrom(`<div class="field">${labelHtml(f)}<input type="checkbox" data-key="${f.key}" /></div>`);
+      case "select":
+        return elFrom(`<div class="field">${labelHtml(f)}<select data-key="${f.key}">${
+          f.options.map((o, i) => `<option value="${i}">${esc(o.label)}</option>`).join("")}</select></div>`);
+      case "range":
+        return elFrom(`<div class="field">${labelHtml(f)}<div class="range"><input type="range" data-key="${f.key}" min="${f.min}" max="${f.max}" step="${f.step}" /><span class="val" data-val="${f.key}"></span></div></div>`);
+      case "text":
+        return elFrom(`<div class="field">${labelHtml(f)}<input type="text" data-key="${f.key}" placeholder="${esc(f.placeholder || "")}" /></div>`);
+      case "color":
+        return elFrom(`<div class="field">${labelHtml(f)}<div class="colors"><input type="color" data-key="${f.key}" />${
+          f.allowAuto ? `<div class="seg"><button data-auto="${f.key}">Auto</button></div>` : ""}</div></div>`);
+      case "colorpair":
+        return elFrom(`<div class="field">${labelHtml(f)}<div class="colors">${
+          f.keys.map((k, i) => `<span>${esc(f.names[i])}</span><input type="color" data-key="${k}" />`).join("")}</div></div>`);
+      case "cities":
+        return elFrom(`<div>
+          <div class="field"><span class="lbl">Your location label<span class="sub">Blank uses your time zone's city</span></span>
+            <input type="text" data-key="${f.labelKey}" placeholder="e.g. Thane" /></div>
+          <div data-cities-list></div>
+          <div class="add-row">
+            <input type="text" data-cities-input list="tzlist" placeholder="Add a city, e.g. Tokyo or Europe/Paris" />
+            <datalist id="tzlist">${zones.map(z => `<option value="${esc(z)}"></option>`).join("")}</datalist>
+            <button class="btn-ghost" data-cities-add>Add</button>
+          </div>
+          <div class="msg" data-cities-msg></div></div>`);
+    }
+    return elFrom("<div></div>");
+  }
+
+  function buildPanel() {
+    const body = $("#settingsBody");
+    body.innerHTML = "";
+    for (const sec of current.def.schema) {
+      const s = elFrom(`<section><h2>${esc(sec.title)}</h2></section>`);
+      for (const f of sec.fields) {
+        const el = fieldEl(f);
+        if (f.key) current.fields.set(f.key, f);
+        (f.keys || []).forEach(k => current.fields.set(k, f));
+        if (f.labelKey) current.fields.set(f.labelKey, { type: "text" });
+        if (f.showIf) current.shows.push({ el, field: f });
+        if (f.type === "cities") wireCities(el, f);
+        s.appendChild(el);
+      }
+      if (sec.dimIf) current.dims.push({ el: s, section: sec });
+      body.appendChild(s);
     }
   }
-  clockBtn.addEventListener("click", toggleClock);
-  $("#hintAdd").addEventListener("click", toggleClock);
 
-  // ---------------- settings: send changes ----------------
+  // ---- send changes (coalesced to one call per animation frame) ----
   let pending = {}, flushQueued = false;
   function patch(obj) {
-    Object.assign(S, obj);
+    Object.assign(current.S, obj);
     Object.assign(pending, obj);
     lastLocalPatch = performance.now();
     if (!flushQueued) {
       flushQueued = true;
+      const id = current.def.id;
       requestAnimationFrame(() => {
         flushQueued = false;
         const p = pending; pending = {};
-        invoke("patch_clock_settings", { patch: p }).catch(console.error);
+        invoke("patch_widget_settings", { id, patch: p }).catch(console.error);
       });
     }
     refreshDerived();
   }
 
-  function parseVal(raw, type) {
-    if (type === "bool") return raw === "true";
-    if (type === "number") return Number(raw);
-    return raw;
-  }
-
-  document.addEventListener("click", (e) => {
+  $("#settingsBody").addEventListener("click", (e) => {
+    if (!current) return;
+    const auto = e.target.closest("[data-auto]");
+    if (auto) { patch({ [auto.dataset.auto]: "auto" }); refreshUI(); return; }
     const b = e.target.closest(".seg[data-key] button");
     if (!b) return;
-    const seg = b.parentElement;
-    patch({ [seg.dataset.key]: parseVal(b.dataset.v, seg.dataset.type) });
+    const key = b.parentElement.dataset.key;
+    const f = current.fields.get(key);
+    patch({ [key]: f.options[Number(b.dataset.i)].v });
     refreshUI();
   });
 
   function onControl(e) {
+    if (!current) return;
     const el = e.target;
     const key = el.dataset && el.dataset.key;
     if (!key || el.closest(".seg")) return;
+    const f = current.fields.get(key);
+    if (!f) return;
     if (el.type === "checkbox") patch({ [key]: el.checked });
     else if (el.type === "range") patch({ [key]: Number(el.value) });
+    else if (el.tagName === "SELECT") patch({ [key]: f.options[Number(el.value)].v });
     else patch({ [key]: el.value });
+    if (f.type === "select") refreshDerived();
   }
-  document.addEventListener("input", onControl);
-  document.addEventListener("change", onControl);
+  $("#settingsBody").addEventListener("input", onControl);
+  $("#settingsBody").addEventListener("change", onControl);
 
-  $("#accentAuto").addEventListener("click", () => { patch({ accent: "auto" }); refreshUI(); });
-
-  // ---------------- settings: reflect state in the UI ----------------
-  function fillFonts() {
-    const sel = $("#font");
-    sel.innerHTML = Object.entries(CS.FONTS).map(([k, f]) => `<option value="${k}">${f.label}</option>`).join("");
+  // ---- reflect state in the controls ----
+  function accentHex(S) {
+    const t = C_resolve(S);
+    return "#" + t.accent.split(" ").map(n => Number(n).toString(16).padStart(2, "0")).join("");
   }
+  const C_resolve = (S) => window.WidgetCommon.resolveTheme(S, false);
 
   function refreshDerived() {
-    $("#customColors").hidden = S.theme !== "custom";
-    $("#accentAuto").className = S.accent === "auto" ? "on" : "";
-    $("#citySection").style.opacity = S.layout === "dashboard" ? 1 : 0.55;
+    const S = current.S;
+    for (const { el, field } of current.shows) el.hidden = !field.showIf(S);
+    for (const { el, section } of current.dims) el.style.opacity = section.dimIf(S) ? 0.55 : 1;
     for (const v of document.querySelectorAll("[data-val]")) {
-      const k = v.dataset.val;
-      v.textContent = S[k] + (k === "radius" ? "px" : "%");
+      const f = current.fields.get(v.dataset.val);
+      v.textContent = S[v.dataset.val] + (f.unit || "");
     }
+    for (const b of document.querySelectorAll("[data-auto]")) b.className = S[b.dataset.auto] === "auto" ? "on" : "";
   }
 
   function refreshUI() {
-    for (const el of document.querySelectorAll("[data-key]")) {
-      const key = el.dataset.key;
+    const S = current.S;
+    for (const el of document.querySelectorAll("#settingsBody [data-key]")) {
+      const key = el.dataset.key, f = current.fields.get(key);
+      if (!f) continue;
       if (el.classList.contains("seg")) {
-        for (const b of el.children) b.classList.toggle("on", b.dataset.v === String(S[key]));
-      } else if (el.type === "checkbox") {
-        el.checked = !!S[key];
-      } else if (el.type === "color") {
-        el.value = S[key] === "auto" ? (CS.resolveTheme(S, false).accent.split(" ").reduce((h, n) => h + Number(n).toString(16).padStart(2, "0"), "#")) : S[key];
-      } else {
-        el.value = S[key];
-      }
+        f.options.forEach((o, i) => el.children[i].classList.toggle("on", String(o.v) === String(S[key])));
+      } else if (el.type === "checkbox") el.checked = !!S[key];
+      else if (el.type === "color") el.value = S[key] === "auto" ? accentHex(S) : S[key];
+      else if (el.tagName === "SELECT") el.value = String(Math.max(0, f.options.findIndex(o => String(o.v) === String(S[key]))));
+      else el.value = S[key] == null ? "" : S[key];
     }
     refreshDerived();
     renderCities();
   }
 
-  // ---------------- cities ----------------
+  // ============================================================
+  // cities editor (clock only)
+  // ============================================================
+  function wireCities(root) {
+    const input = root.querySelector("[data-cities-input]");
+    const add = () => {
+      const found = CS.resolveCity(input.value, zones);
+      if (!found) return setCityMsg("Couldn't find that city. Try a time zone like Asia/Tokyo.");
+      if (current.S.cities.some(c => c.tz === found.tz && c.name === found.name)) return setCityMsg("Already in the list.");
+      patch({ cities: current.S.cities.concat([found]) });
+      input.value = "";
+      renderCities();
+    };
+    root.querySelector("[data-cities-add]").addEventListener("click", add);
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") add(); });
+  }
+
+  function setCityMsg(text, info) {
+    const m = document.querySelector("[data-cities-msg]");
+    if (!m) return;
+    m.textContent = text;
+    m.className = "msg" + (info ? " info" : "");
+  }
+
   function renderCities() {
-    const list = $("#cityList");
+    const list = document.querySelector("[data-cities-list]");
+    if (!list) return;
+    const S = current.S;
     list.innerHTML = "";
     S.cities.forEach((c, i) => {
       const row = document.createElement("div");
       row.className = "city-item";
-      const label = c.tz === "local" ? CS.displayName(c, S) + "<small>your location</small>" : `${c.name}<small>${c.tz}</small>`;
+      const label = c.tz === "local" ? esc(CS.displayName(c, S)) + "<small>your location</small>" : `${esc(c.name)}<small>${esc(c.tz)}</small>`;
       row.innerHTML = `<span>${label}</span><span class="btns">
         <button data-act="up" ${i === 0 ? "disabled" : ""}>↑</button>
         <button data-act="down" ${i === S.cities.length - 1 ? "disabled" : ""}>↓</button>
@@ -364,55 +397,41 @@
       list.appendChild(row);
     });
     const full = S.cities.length >= CS.MAX_CITIES;
-    $("#cityAdd").disabled = full;
-    $("#cityInput").disabled = full;
-    setMsg(full ? `Maximum of ${CS.MAX_CITIES} cities` : "", true);
+    document.querySelector("[data-cities-add]").disabled = full;
+    document.querySelector("[data-cities-input]").disabled = full;
+    setCityMsg(full ? `Maximum of ${CS.MAX_CITIES} cities` : "", true);
   }
 
-  function setMsg(text, info) {
-    const m = $("#cityMsg");
-    m.textContent = text;
-    m.className = "msg" + (info ? " info" : "");
-  }
-
-  function addCity() {
-    const text = $("#cityInput").value;
-    const found = CS.resolveCity(text, zones);
-    if (!found) { setMsg("Couldn't find that city. Try a time zone like Asia/Tokyo."); return; }
-    if (S.cities.some(c => c.tz === found.tz && c.name === found.name)) { setMsg("Already in the list."); return; }
-    patch({ cities: S.cities.concat([found]) });
-    $("#cityInput").value = "";
-    renderCities();
-  }
-  $("#cityAdd").addEventListener("click", addCity);
-  $("#cityInput").addEventListener("keydown", (e) => { if (e.key === "Enter") addCity(); });
-
-  // ---------------- reset ----------------
+  // ============================================================
+  // reset
+  // ============================================================
   $("#resetBtn").addEventListener("click", async () => {
+    if (!current) return;
     lastLocalPatch = performance.now();
-    await invoke("reset_clock_settings");
-    S = CS.merge({});
+    await invoke("reset_widget_settings", { id: current.def.id });
+    current.S = current.def.merge({});
     refreshUI();
   });
 
-  // ---------------- boot ----------------
-  async function init() {
-    fillFonts();
-    $("#tzlist").innerHTML = zones.map(z => `<option value="${z}"></option>`).join("");
-    show("list");
-    try { clockActive = await invoke("get_state"); } catch (err) { console.error("Deskly: failed to load widget state:", err); }
-    renderClockBtn();
-    try { S = CS.merge(await invoke("get_clock_settings")); } catch (err) { console.error("Deskly: failed to load clock settings:", err); }
-    refreshUI();
+  // ============================================================
+  // boot
+  // ============================================================
+  (async function init() {
+    showView("list");
+    await refreshStates();
 
-    // changes made on the widget itself (e.g. the 12h/24h switch) or after a reset
-    listen("clock-settings", (e) => {
-      if (performance.now() - lastLocalPatch < 400) return; // our own echo
-      S = CS.merge(e.payload);
+    // a widget was closed/pinned from somewhere else (e.g. right-click on the widget)
+    listen("widget-states", (e) => { states = e.payload || {}; renderList(); renderHint(); });
+
+    // settings changed from the widget itself (e.g. the clock's 12h/24h switch)
+    listen("widget-settings", (e) => {
+      const p = e.payload;
+      if (!current || !p || p.id !== current.def.id) return;
+      if (performance.now() - lastLocalPatch < 400) return;   // our own echo
+      current.S = current.def.merge(p.settings);
       refreshUI();
     });
-  }
-  init();
+  })();
 </script>
 </body>
 </html>
