@@ -109,9 +109,11 @@
 <script src="shared/clock-shared.js"></script>
 <script src="shared/pomodoro-shared.js"></script>
 <script src="shared/system-shared.js"></script>
+<script src="shared/weather-shared.js"></script>
 <script src="shared/widget-registry.js"></script>
 <script>
   const CS = window.ClockShared;          // used by the cities editor
+  const WX = window.WeatherShared;        // used by the place search
   const REGISTRY = window.WidgetRegistry;
   const { invoke } = window.__TAURI__.core;
   const { listen } = window.__TAURI__.event;
@@ -233,6 +235,16 @@
       case "colorpair":
         return elFrom(`<div class="field">${labelHtml(f)}<div class="colors">${
           f.keys.map((k, i) => `<span>${esc(f.names[i])}</span><input type="color" data-key="${k}" />`).join("")}</div></div>`);
+      case "place":
+        return elFrom(`<div>
+          <div class="field"><span class="lbl">Current location<span class="sub" data-place-current>Not set</span></span>
+            <button class="btn-ghost" data-place-clear>Clear</button></div>
+          <div class="add-row">
+            <input type="text" data-place-input placeholder="Search a city, e.g. Tokyo" />
+            <button class="btn-ghost" data-place-search>Search</button>
+          </div>
+          <div data-place-results style="margin-top:8px"></div>
+          <div class="msg info" data-place-msg>Weather data by Open-Meteo.com. Deskly sends it only the coordinates of the place you pick. No account or API key.</div></div>`);
       case "cities":
         return elFrom(`<div>
           <div class="field"><span class="lbl">Your location label<span class="sub">Blank uses your time zone's city</span></span>
@@ -260,6 +272,7 @@
         if (f.labelKey) current.fields.set(f.labelKey, { type: "text" });
         if (f.showIf) current.shows.push({ el, field: f });
         if (f.type === "cities") wireCities(el, f);
+        if (f.type === "place") wirePlace(el, f);
         s.appendChild(el);
       }
       if (sec.dimIf) current.dims.push({ el: s, section: sec });
@@ -345,6 +358,7 @@
     }
     refreshDerived();
     renderCities();
+    renderPlace();
   }
 
   // ============================================================
@@ -400,6 +414,62 @@
     document.querySelector("[data-cities-add]").disabled = full;
     document.querySelector("[data-cities-input]").disabled = full;
     setCityMsg(full ? `Maximum of ${CS.MAX_CITIES} cities` : "", true);
+  }
+
+
+  // ============================================================
+  // place search (weather only): Open-Meteo geocoding
+  // ============================================================
+  let placeResults = [];
+
+  function setPlaceMsg(text, isError) {
+    const m = document.querySelector("[data-place-msg]");
+    if (!m) return;
+    m.textContent = text;
+    m.className = "msg" + (isError ? "" : " info");
+  }
+
+  function renderPlace() {
+    const cur = document.querySelector("[data-place-current]");
+    if (!cur) return;
+    cur.textContent = current.S.location ? WX.placeLabel(current.S.location) : "Not set";
+    const list = document.querySelector("[data-place-results]");
+    list.innerHTML = "";
+    placeResults.forEach((p, i) => {
+      const row = document.createElement("div");
+      row.className = "city-item";
+      row.innerHTML = `<span>${esc(p.name)}<small>${esc([p.admin1, p.country].filter(Boolean).join(", "))}</small></span><span class="btns"><button data-use="${i}">Use</button></span>`;
+      list.appendChild(row);
+    });
+  }
+
+  function wirePlace(root) {
+    const input = root.querySelector("[data-place-input]");
+    const search = async () => {
+      const q = input.value.trim();
+      if (q.length < 2) return setPlaceMsg("Type at least 2 letters.", true);
+      setPlaceMsg("Searching…");
+      try {
+        const res = await fetch(WX.buildGeoUrl(q));
+        placeResults = WX.parseGeo(await res.json());
+        renderPlace();
+        setPlaceMsg(placeResults.length ? "Pick the right one:" : "No matches. Try just the city name.", !placeResults.length);
+      } catch (e) {
+        setPlaceMsg("Couldn't search (" + (e && e.message ? e.message : e) + "). Check your connection.", true);
+      }
+    };
+    root.querySelector("[data-place-search]").addEventListener("click", search);
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") search(); });
+    root.addEventListener("click", (e) => {
+      const use = e.target.closest("[data-use]");
+      if (use) {
+        patch({ location: placeResults[Number(use.dataset.use)] });
+        placeResults = []; input.value = "";
+        renderPlace(); setPlaceMsg("Location set. The widget will load it in a moment.");
+      } else if (e.target.closest("[data-place-clear]")) {
+        patch({ location: null }); placeResults = []; renderPlace(); setPlaceMsg("");
+      }
+    });
   }
 
   // ============================================================

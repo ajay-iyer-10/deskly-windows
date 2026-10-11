@@ -84,6 +84,18 @@ Custom colors), accent color, font, digit weight, size, opacity and corner radiu
   adding the widget can be off for a second or two while it gets a baseline.
 - Numbers turn amber at 85% usage and red at 95%.
 
+**Weather**
+- **Location first:** Customize, then search for your city and click **Use** on the right match
+  (regions are shown, so you can tell apart places with the same name). Until you pick one, the
+  widget just says "Choose a location".
+- **Layout:** Compact, Standard or Full (adds the 5-day forecast).
+- **Units & time:** °C/°F, km/h/mph, 12h/24h. Changing units or layout never re-downloads anything.
+- **Updates:** every 30 minutes by default. The ↻ button on the widget refreshes right away
+  (at most once every 15 seconds).
+- **Offline:** the last forecast is saved. If you're offline, or Open-Meteo can't be reached, the widget
+  keeps showing it with an "Offline · updated 2 h ago" badge and retries on its own.
+- Needs an internet connection the first time, and sends only the coordinates of your chosen place to Open-Meteo.
+
 ## 5. Temperatures (optional, but needed for real CPU/GPU temps)
 
 CPU and RAM work out of the box. **Temperatures are different:** Windows doesn't let
@@ -124,6 +136,9 @@ The installer and executable are created under
 | A widget window seems stuck from an old run | End any leftover `deskly.exe` in Task Manager and relaunch. |
 | System widget shows no temperatures | Check LibreHardwareMonitor is running as administrator and **Options, Remote Web Server, Run** is ticked. Test it by opening http://localhost:8085/data.json in a browser: you should see JSON. If you changed the port, set the same one in Customize. |
 | Temperatures show but say "SYSTEM TEMP" | That's the generic Windows sensor, not the CPU. Set up LibreHardwareMonitor (section 5) for CPU and GPU. |
+| Weather says "Couldn't reach Open-Meteo" | Check your connection (and any firewall or proxy). It retries by itself after 1, 2, 5 and then 10 minutes, or press ↻. |
+| Weather says "Open-Meteo said: ..." | The service rejected the request (for example while it's having issues). Try again later, and check https://status.open-meteo.com. |
+| City search finds nothing | Search with just the city name (try the English spelling). Search needs an internet connection. |
 | A pinned widget climbs on top of other windows when clicked | Known Windows quirk, let us know. Untick and retick **Pin to desktop** to reset it. |
 | Win+D (show desktop) hides pinned widgets | Expected: pinned widgets sit behind windows, they aren't part of the desktop itself. |
 | Widget doesn't show after a position change | If you unplug a monitor, Deskly puts the widget back at the default spot on next launch. |

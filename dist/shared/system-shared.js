@@ -65,6 +65,18 @@
     return { line, fill };
   }
 
+  // "AMD Ryzen 7 5800H with Radeon Graphics" -> "AMD Ryzen 7 5800H" (marketing suffixes just cause truncation)
+  function cleanCpuName(name) {
+    return String(name || "")
+      .replace(/\((R|TM)\)/gi, "")
+      .replace(/\s*@\s*[\d.]+\s*GHz/i, "")
+      .replace(/\s+with\s+.*$/i, "")
+      .replace(/\s+\d+-Core\b/i, "")
+      .replace(/\b(CPU|Processor)\b/gi, "")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+  }
+
   // What to tell the user about temperatures. polls = how many samples we've received.
   function tempHint(status, polls) {
     if (status === "lhm") return "";
@@ -75,7 +87,7 @@
 
   root.SystemShared = {
     LAYOUT_WIDTH_REM, HISTORY, DEFAULT_LHM_PORT, DEFAULTS,
-    merge, pollKey, toUnit, usageSeverity, tempSeverity, gb, pushHistory, sparkline, tempHint
+    merge, pollKey, toUnit, usageSeverity, tempSeverity, gb, pushHistory, sparkline, cleanCpuName, tempHint
   };
   if (typeof module !== "undefined") module.exports = root.SystemShared;
 })(typeof window !== "undefined" ? window : globalThis);

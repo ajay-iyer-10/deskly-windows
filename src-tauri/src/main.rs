@@ -56,6 +56,13 @@ const WIDGETS: &[WidgetDef] = &[
         size: (360.0, 320.0),
         position: (760.0, 420.0),
     },
+    WidgetDef {
+        id: "weather",
+        title: "Deskly Weather",
+        url: "widgets/weather.html",
+        size: (420.0, 420.0),
+        position: (100.0, 470.0),
+    },
 ];
 
 fn def_for(id: &str) -> Result<&'static WidgetDef, String> {

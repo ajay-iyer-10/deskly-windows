@@ -2,7 +2,7 @@
    The manager builds the whole settings panel from these schemas, so a new
    widget needs no new UI code (unless it needs a brand-new field type).
 
-   Field types: seg, toggle, select, range, text, color (allowAuto), colorpair, cities
+   Field types: seg, toggle, select, range, text, color (allowAuto), colorpair, cities, place
    Common field props: key, label, sub, showIf(S)
    Section props:      title, dimIf(S), fields[]                                       */
 (function (root) {
@@ -11,6 +11,7 @@
   const Clock = root.ClockShared;
   const Pomo = root.PomodoroShared;
   const Sys = root.SystemShared;
+  const Weather = root.WeatherShared;
   const opt = (v, label) => ({ v, label });
 
   const appearance = {
@@ -103,7 +104,31 @@
     ]
   };
 
+  const weather = {
+    id: "weather",
+    name: "Weather",
+    description: "Current conditions, hourly and 5-day forecast",
+    merge: Weather.merge,
+    schema: [
+      { title: "Location", fields: [{ type: "place", key: "location", label: "Location" }] },
+      { title: "Layout", fields: [
+        { type: "seg", key: "layout", label: "Style", sub: "Full adds the 5-day forecast",
+          options: [opt("compact", "Compact"), opt("standard", "Standard"), opt("full", "Full")] }
+      ] },
+      { title: "Units & time", fields: [
+        { type: "seg", key: "tempUnit", label: "Temperature", options: [opt("C", "°C"), opt("F", "°F")] },
+        { type: "seg", key: "windUnit", label: "Wind speed", options: [opt("kmh", "km/h"), opt("mph", "mph")] },
+        { type: "seg", key: "hour12", label: "Hour format", options: [opt(false, "24h"), opt(true, "12h")] }
+      ] },
+      { title: "Updates", fields: [
+        { type: "range", key: "refreshMin", label: "Refresh every", sub: "Deskly never checks more often than this",
+          min: 10, max: 180, step: 5, unit: " min" }
+      ] },
+      appearance
+    ]
+  };
+
   // order = order in the manager
-  root.WidgetRegistry = [clock, pomodoro, system];
+  root.WidgetRegistry = [clock, pomodoro, system, weather];
   if (typeof module !== "undefined") module.exports = root.WidgetRegistry;
 })(typeof window !== "undefined" ? window : globalThis);

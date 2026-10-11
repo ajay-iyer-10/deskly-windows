@@ -66,6 +66,8 @@
 
     function spark(values, sev) {
       if (!S.showSparklines || S.layout === "compact") return "";
+      // fewer than 2 samples can't draw a line: show a faint baseline (keeps the card height steady)
+      if (values.length < 2) return '<svg class="spark" viewBox="0 0 100 24" preserveAspectRatio="none"><path class="sl" d="M0 22.5L100 22.5" opacity=".2"/></svg>';
       const p = SS.sparkline(values);
       return '<svg class="spark sev-' + sev + '" viewBox="0 0 100 24" preserveAspectRatio="none"><path class="sf" d="' + p.fill + '"/><path class="sl" d="' + p.line + '"/></svg>';
     }
@@ -94,13 +96,13 @@
         html += '<div class="grid" style="--cols:' + cols + '">' +
           '<div class="stat"><div class="row"><span class="ttl">CPU</span></div>' + bigNumber(cpu, cpuSev) + "</div>" +
           '<div class="stat"><div class="row"><span class="ttl">RAM</span></div>' + bigNumber(memPct, memSev) + "</div>" +
-          (S.showTemps ? '<div class="stat"><div class="row"><span class="ttl">' + (t ? WC.escapeHtml(t.label.toUpperCase()) : "TEMP") + "</span></div>" +
+          (S.showTemps ? '<div class="stat"><div class="row"><span class="ttl">TEMP</span></div>' +
             '<div class="big sev-' + tSev + '">' + (t ? WC.digitsHtml(String(SS.toUnit(t.celsius, S.tempUnit))) : '<span class="d">–</span>') + '<span class="unit">°' + S.tempUnit + "</span></div></div>" : "") +
           "</div>";
       } else {
         html += '<div class="grid" style="--cols:2">' +
           '<div class="stat"><div class="row"><span class="ttl">CPU</span><span>' + (d && d.cores ? d.cores + (d.cores === 1 ? " core" : " cores") : "") + "</span></div>" +
-            bigNumber(cpu, cpuSev) + spark(hist.cpu, cpuSev) + '<div class="sub">' + (d ? WC.escapeHtml(d.cpuName || "") : "") + "</div></div>" +
+            bigNumber(cpu, cpuSev) + spark(hist.cpu, cpuSev) + '<div class="sub">' + (d ? WC.escapeHtml(SS.cleanCpuName(d.cpuName)) : "") + "</div></div>" +
           '<div class="stat"><div class="row"><span class="ttl">RAM</span><span>' + (d ? SS.gb(d.memUsed) + " / " + SS.gb(d.memTotal) + " GB" : "") + "</span></div>" +
             bigNumber(memPct, memSev) + spark(hist.mem, memSev) + '<div class="sub">' + (d ? SS.gb(d.memTotal - d.memUsed) + " GB free" : "") + "</div></div>" +
           "</div>";

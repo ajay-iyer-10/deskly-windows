@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<link rel="stylesheet" href="../shared/widget.css" />
+<style>
+  .head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; min-height: 1.2rem; }
+  .loc { font-size: .85rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .head .right { display: flex; align-items: center; gap: .3rem; flex-shrink: 0; }
+  .upd { font-size: .58rem; font-weight: 500; color: rgb(var(--fg) / .5); white-space: nowrap; }
+  .upd.off { color: #f5a524; }
+  .ref { all: unset; cursor: pointer; font-size: .95rem; line-height: 1; opacity: .55; padding: 0 .15rem; }
+  .ref:hover { opacity: 1; }
+  .ref.spin { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .now { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+  .bigtemp { display: flex; align-items: flex-start; font-size: 4rem; font-weight: var(--fw); line-height: .95; white-space: nowrap; }
+  .bigtemp .d { display: inline-block; width: calc(var(--cell) * 1em); text-align: center; }
+  .bigtemp .sign { display: inline-block; width: .45em; text-align: center; }
+  .bigtemp .unit { font-size: .36em; margin: .2em 0 0 .05em; opacity: .65; font-weight: 700; }
+  .cond { display: flex; flex-direction: column; align-items: flex-end; gap: .2rem; text-align: right; min-width: 0; }
+  .cond .wi { width: 3.6rem; height: 3.6rem; }
+  .cond .ct { font-size: .85rem; font-weight: 700; }
+  .cond .sub { font-size: .62rem; font-weight: 500; color: rgb(var(--fg) / .55); }
+  .card.compact .bigtemp { font-size: 3.2rem; }
+  .card.compact .cond .wi { width: 2.8rem; height: 2.8rem; }
+
+  .chips { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .45rem; }
+  .chip { display: flex; flex-direction: column; gap: .15rem; padding: .5rem .6rem; border-radius: .8rem; background: rgb(var(--fg) / .06); min-width: 0; }
+  .chip .l { font-size: .52rem; font-weight: 700; letter-spacing: .05em; opacity: .55; text-transform: uppercase; }
+  .chip .v { font-size: .95rem; font-weight: 700; line-height: 1.1; white-space: nowrap; }
+  .chip .s { font-size: .54rem; opacity: .55; white-space: nowrap; min-height: .7rem; overflow: hidden; text-overflow: ellipsis; }
+
+  .hourly { display: grid; grid-template-columns: repeat(var(--hn, 6), minmax(0, 1fr)); gap: .4rem; }
+  .hr { display: flex; flex-direction: column; align-items: center; gap: .3rem; padding: .55rem .15rem .45rem; border-radius: .8rem; background: rgb(var(--fg) / .06); min-width: 0; }
+  .hr.now { background: rgb(var(--accent)); color: rgb(var(--accent-fg)); }
+  .hr .t { font-size: .56rem; font-weight: 500; opacity: .75; white-space: nowrap; }
+  .hr .wi { width: 1.5rem; height: 1.5rem; }
+  .hr .v { font-size: .9rem; font-weight: 700; }
+  .hr .p { font-size: .52rem; font-weight: 700; color: #4aa3ff; min-height: .7rem; }
+
+  .daily { display: flex; flex-direction: column; gap: .1rem; }
+  .day { display: grid; grid-template-columns: 3.3rem 1.5rem 1.9rem 1.6rem 1fr 1.6rem; align-items: center; gap: .4rem; font-size: .72rem; padding: .2rem 0; }
+  .day .n { font-weight: 700; }
+  .day .wi { width: 1.4rem; height: 1.4rem; }
+  .day .p { color: #4aa3ff; font-size: .58rem; font-weight: 700; }
+  .day .lo { opacity: .55; text-align: right; }
+  .day .hi { font-weight: 700; }
+  .bar { position: relative; height: .28rem; border-radius: 999px; background: rgb(var(--fg) / .1); }
+  .bar i { position: absolute; top: 0; bottom: 0; border-radius: 999px; background: rgb(var(--accent)); }
+  .sunline { display: flex; justify-content: space-between; font-size: .62rem; font-weight: 500; opacity: .6; }
+
+  .empty { display: flex; flex-direction: column; align-items: center; gap: .5rem; text-align: center; padding: .6rem 0; }
+  .empty .wi { width: 3.2rem; height: 3.2rem; }
+  .empty .t { font-size: .9rem; font-weight: 700; }
+  .empty .m { font-size: .68rem; line-height: 1.4; color: rgb(var(--fg) / .6); }
+  .btn.small { padding: .4rem .85rem; font-size: .7rem; }
+</style>
+</head>
+<body>
+  <div id="frame"><div class="card" id="card"></div></div>
+
+  <script src="../shared/common.js"></script>
+  <script src="../shared/weather-shared.js"></script>
+  <script>
+    const WC = window.WidgetCommon, WS = window.WeatherShared;
+    const esc = WC.escapeHtml;
+    const card = document.getElementById("card");
+    const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
+    let S = WS.merge({});
+    let cache = null;            // { key, fetchedAt, data }  (also saved by Deskly, so it survives restarts)
+    let failures = 0, loading = false, lastError = "", errorKind = "";   // errorKind: "network" | "api"
+    let timer = null, lastManual = 0;
+    let boot = null;
+
+    // ---------- cache helpers ----------
+    function validCache(c) {
+      return c && typeof c.key === "string" && Number.isFinite(c.fetchedAt) && c.data &&
+        Array.isArray(c.data.hourly) && Array.isArray(c.data.daily) && c.data.current ? c : null;
+    }
+    function currentCache() {
+      return cache && S.location && cache.key === WS.cacheKey(S.location) ? cache : null;
+    }
+
+    // ---------- fetching ----------
+    async function fetchForecast(loc) {
+      const ctrl = new AbortController();
+      const to = setTimeout(() => ctrl.abort(), 12000);
+      try {
+        const res = await fetch(WS.buildForecastUrl(loc), { signal: ctrl.signal, cache: "no-store" });
+        const json = await res.json().catch(() => null);
+        if (!res.ok || !json || json.error) throw new Error((json && json.reason) || "HTTP " + res.status);
+        return WS.parseForecast(json);
+      } finally { clearTimeout(to); }
+    }
+
+    async function refresh() {
+      clearTimeout(timer);
+      if (!S.location || loading) return;
+      loading = true; render();
+      try {
+        const data = await fetchForecast(S.location);
+        cache = { key: WS.cacheKey(S.location), fetchedAt: Date.now(), data };
+        failures = 0; lastError = ""; errorKind = "";
+        if (boot) boot.patch({ cache });
+      } catch (e) {
+        failures++;
+        // fetch() rejects with a TypeError when there's no network; anything else came from Open-Meteo itself
+        const network = !e || e.name === "AbortError" || e instanceof TypeError;
+        errorKind = network ? "network" : "api";
+        lastError = network ? "Couldn't reach Open-Meteo. Check your connection." : "Open-Meteo said: " + String(e.message || e);
+      }
+      loading = false;
+      render();
+      schedule();
+    }
+
+    // Normal cadence: refreshMin after the last good fetch. After a failure: back off (1, 2, 5, 10 min).
+    function schedule() {
+      clearTimeout(timer);
+      if (!S.location) return;
+      const refreshMs = S.refreshMin * 60000;
+      const c = currentCache();
+      let delay;
+      if (failures > 0) delay = WS.retryDelayMs(failures, S.refreshMin);
+      else if (c) delay = Math.max(30000, c.fetchedAt + refreshMs - Date.now());
+      else delay = 0;
+      timer = setTimeout(refresh, delay);
+    }
+
+    function ensureFresh() {
+      if (!S.location) { clearTimeout(timer); return; }
+      if (WS.isFresh(currentCache(), S.refreshMin, Date.now())) schedule(); else refresh();
+    }
+
+    // ---------- rendering ----------
+    function empty(icon, title, msg, retry) {
+      return '<div class="empty">' + WS.iconSvg(icon, true) + '<div class="t">' + esc(title) + "</div>" +
+        '<div class="m">' + esc(msg) + "</div>" +
+        (retry ? '<button class="btn small" data-refresh>Try again</button>' : "") + "</div>";
+    }
+
+    function bigTemp(v) {
+      if (v == null) return '<span class="d">–</span>';
+      return (v < 0 ? '<span class="sign">−</span>' : "") + WC.digitsHtml(String(Math.abs(v)));
+    }
+
+    function chip(label, value, sub) {
+      return '<div class="chip"><span class="l">' + label + '</span><span class="v">' + esc(value) + '</span><span class="s">' + esc(sub || "") + "</span></div>";
+    }
+
+    function header(c) {
+      let upd;
+      if (failures > 0) upd = '<span class="upd off">Offline · ' + WS.ageText(Date.now() - c.fetchedAt) + "</span>";
+      else {
+        const d = new Date(c.fetchedAt);
+        upd = '<span class="upd">' + (S.layout === "compact" ? "" : "Updated " + WS.clock(d.getHours(), String(d.getMinutes()).padStart(2, "0"), S.hour12) + " · Open-Meteo") + "</span>";
+      }
+      return '<div class="head"><span class="loc" title="' + esc(WS.placeLabel(S.location)) + '">' + esc(S.location.name) + "</span>" +
+        '<span class="right">' + upd + '<button class="ref' + (loading ? " spin" : "") + '" data-refresh title="Refresh">↻</button></span></div>';
+    }
+
+    function render() {
+      card.className = "card " + S.layout;
+      if (!S.location) {
+        card.innerHTML = empty("cloud", "Choose a location", "Open Deskly, go to Weather, then Customize and search for your city.");
+        return;
+      }
+      const c = currentCache();
+      if (!c) {
+        card.innerHTML = lastError && !loading
+          ? empty("cloud", "Couldn't load weather", lastError, true)
+          : empty("partly", "Loading weather…", S.location.name);
+        return;
+      }
+
+      const model = c.data, now = Date.now(), cur = model.current;
+      const days = WS.upcomingDays(model, now, WS.DAYS_SHOWN);
+      const today = days[0];
+      const dayNow = WS.isDayNow(model, now);
+      const d = WS.describe(cur.code);
+      const hours = S.layout === "compact" ? [] : WS.upcomingHours(model, now, WS.HOURS_SHOWN[S.layout]);
+      const T = (v) => WS.toTemp(v, S.tempUnit);
+
+      let sub = [];
+      if (cur.feels != null) sub.push("Feels " + T(cur.feels) + "°");
+      if (today && today.tmax != null && today.tmin != null) sub.push("H " + T(today.tmax) + "° L " + T(today.tmin) + "°");
+
+      let html = header(c);
+      html += '<div class="now"><div class="bigtemp">' + bigTemp(T(cur.temp)) + '<span class="unit">°' + S.tempUnit + "</span></div>" +
+        '<div class="cond">' + WS.iconSvg(d.icon, dayNow) + '<span class="ct">' + esc(d.text) + '</span><span class="sub">' + esc(sub.join(" · ")) + "</span></div></div>";
+
+      if (S.layout !== "compact") {
+        const popNow = hours.length && hours[0].pop != null ? hours[0].pop : (today ? today.pop : null);
+        const wind = WS.toWind(cur.wind, S.windUnit);
+        html += '<div class="chips">' +
+          chip("Humidity", cur.humidity == null ? "–" : Math.round(cur.humidity) + "%", "") +
+          chip("Wind", wind == null ? "–" : String(wind), (WS.windLabel(S.windUnit) + " " + WS.compass(cur.windDir)).trim()) +
+          chip("Rain", popNow == null ? "–" : Math.round(popNow) + "%", "chance") +
+          chip("UV", today && today.uv != null ? String(Math.round(today.uv)) : "–", today ? WS.uvLevel(today.uv) : "") + "</div>";
+      }
+
+      if (hours.length) {
+        html += '<div class="hourly" style="--hn:' + hours.length + '">' + hours.map(h =>
+          '<div class="hr' + (h.isNow ? " now" : "") + '"><span class="t">' + (h.isNow ? "Now" : WS.hourLabel(h.t, S.hour12)) + "</span>" +
+          WS.iconSvg(WS.describe(h.code).icon, h.isDay) + '<span class="v">' + (T(h.temp) == null ? "–" : T(h.temp) + "°") + "</span>" +
+          '<span class="p">' + (h.pop != null && h.pop >= 20 ? Math.round(h.pop) + "%" : "") + "</span></div>").join("") + "</div>";
+      }
+
+      if (S.layout === "full" && days.length) {
+        const lo = Math.min(...days.map(x => x.tmin).filter(v => v != null));
+        const hi = Math.max(...days.map(x => x.tmax).filter(v => v != null));
+        const span = hi - lo;
+        html += '<div class="daily">' + days.map(x => {
+          const left = span > 0 && x.tmin != null ? (x.tmin - lo) / span * 100 : 0;
+          const width = span > 0 && x.tmin != null && x.tmax != null ? Math.max(8, (x.tmax - x.tmin) / span * 100) : 100;
+          return '<div class="day"><span class="n">' + x.label + "</span>" + WS.iconSvg(WS.describe(x.code).icon, true) +
+            '<span class="p">' + (x.pop != null && x.pop >= 20 ? Math.round(x.pop) + "%" : "") + "</span>" +
+            '<span class="lo">' + (T(x.tmin) == null ? "–" : T(x.tmin) + "°") + '</span><span class="bar"><i style="left:' + left.toFixed(1) + "%;width:" + Math.min(width, 100 - left).toFixed(1) + '%"></i></span>' +
+            '<span class="hi">' + (T(x.tmax) == null ? "–" : T(x.tmax) + "°") + "</span></div>";
+        }).join("") + "</div>";
+        if (today && today.sunrise && today.sunset) {
+          html += '<div class="sunline"><span>Sunrise ' + WS.timeOfDay(today.sunrise, S.hour12) + "</span><span>Sunset " + WS.timeOfDay(today.sunset, S.hour12) + "</span></div>";
+        }
+      }
+      card.innerHTML = html;
+    }
+
+    // ---------- interaction ----------
+    card.addEventListener("click", (e) => {
+      if (!e.target.closest("[data-refresh]")) return;
+      if (Date.now() - lastManual < 15000) return;      // be kind to the free API
+      lastManual = Date.now();
+      refresh();
+    });
+
+    window.addEventListener("online", () => { if (S.location && (failures > 0 || !WS.isFresh(currentCache(), S.refreshMin, Date.now()))) refresh(); });
+    setInterval(() => { if (S.location && !loading) render(); }, 60000);   // keeps "Now", ages and day/night current
+
+    // ---------- settings ----------
+    function applyAppearance() {
+      WC.applyAppearance(S, darkQuery.matches);
+      document.documentElement.style.setProperty("--card-w", WS.LAYOUT_WIDTH_REM[S.layout] + "rem");
+    }
+
+    function onSettings(partial, initial) {
+      const next = WS.merge(partial);
+      const changed = WS.settingsKey(next) !== WS.settingsKey(S);
+      const refetch = WS.fetchKey(next) !== WS.fetchKey(S);
+      S = next;
+      if (initial) cache = validCache(partial.cache);
+      if (!initial && !changed) return;                 // just our own cache being saved
+      applyAppearance();
+      render();
+      if (boot) boot.scheduleResize();
+      if (initial || refetch) { failures = 0; lastError = ""; errorKind = ""; ensureFresh(); }
+    }
+
+    darkQuery.addEventListener("change", () => { if (S.theme === "auto") applyAppearance(); });
+
+    applyAppearance();
+    render();
+    boot = WC.bootstrap({ id: "weather", frame: document.getElementById("frame"), card, onSettings });
+  </script>
+</body>
+</html>

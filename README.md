@@ -14,14 +14,14 @@ shipping a full browser for every widget.
 
 ## Features
 
-- **Free and open source** — MIT licensed, no ads, no accounts, no tracking
+- **Free and open source** — MIT licensed, no ads, no accounts, no analytics or tracking
 - **Frameless widgets** with a clean, modern look
 - **Pin to desktop** — keep any widget behind your other windows instead of on top
 - **Highly customizable** — layouts, themes, fonts, colors, size, opacity and more, with live preview
 - **Drag anywhere** — move widgets with the mouse, right-click to close
 - **Tray-first** — close the manager window and your widgets keep running
 - **Remembers your setup** — active widgets, settings, pin state and positions come back on next launch
-- **Works offline** — fonts are bundled, no network calls
+- **Mostly offline** — fonts are bundled and every widget works without a network except Weather, which keeps showing its last forecast when you're offline
 - **Web-tech widgets** — each widget is plain HTML, CSS and JavaScript, so
   they are easy to build and restyle
 
@@ -32,6 +32,7 @@ shipping a full browser for every widget.
 | Clock | Big bold time with date, 12h/24h switch and a world cities row |
 | Pomodoro | Focus timer with short and long breaks, session dots, progress bar and a chime |
 | System | Live CPU and RAM usage with history graphs, plus CPU/GPU temperatures |
+| Weather | Current conditions, hourly strip and 5-day forecast for any city (Open-Meteo, no API key) |
 
 **Clock**
 
@@ -55,6 +56,19 @@ shipping a full browser for every widget.
 - **About temperatures:** Windows doesn't let normal apps read CPU/GPU temperatures. Deskly reads them from
   [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) when it's running
   (setup in [HOW_TO_RUN.md](HOW_TO_RUN.md)), and otherwise shows whatever sensor data Windows exposes
+
+**Weather**
+
+- **Layouts:** Compact, Standard (current conditions, humidity, wind, rain chance, UV, next 6 hours) or Full
+  (adds a 5-day forecast with temperature range bars and sunrise/sunset)
+- **Location:** search for any city by name. Pick one and you're done, no account or key
+- **Units:** °C or °F, km/h or mph, 12h or 24h
+- **Gentle on the free API:** refreshes every 30 minutes by default (you can slow it down, never faster than
+  every 10), with a 15-second limit on the manual refresh button
+- **Offline-friendly:** the last forecast is saved, shown instantly on launch, and kept on screen with an
+  "Offline" badge if the connection drops. Retries back off automatically
+- **Privacy:** Deskly sends only the coordinates of the place you picked to [Open-Meteo](https://open-meteo.com).
+  No account, no API key, no location detection
 
 **Every widget** shares the same appearance controls: Light / Dark / Auto (follows
 Windows) / Custom colors, accent color, 3 bundled fonts plus the system font,
@@ -86,12 +100,14 @@ deskly/
 │  │  ├─ widget-registry.js   # Every widget's name + settings schema
 │  │  ├─ clock-shared.js      # Clock defaults, time zones, formatting
 │  │  ├─ pomodoro-shared.js   # Pomodoro defaults and timer state machine
-│  │  └─ system-shared.js     # System widget defaults, units, severity, sparklines
+│  │  ├─ system-shared.js     # System widget defaults, units, severity, sparklines
+│  │  └─ weather-shared.js    # Weather settings, Open-Meteo requests/parsing, icons
 │  ├─ fonts/                  # Bundled open-licensed fonts
 │  └─ widgets/
 │     ├─ clock.html           # One page per widget
 │     ├─ pomodoro.html
-│     └─ system.html
+│     ├─ system.html
+│     └─ weather.html
 └─ src-tauri/
    ├─ src/main.rs             # Widget registry, windows, tray, saved state
    ├─ src/sampler.rs          # CPU / RAM / temperature sampling (System widget)
@@ -120,6 +136,11 @@ Widget settings are free-form JSON owned by the frontend, so adding or changing 
 setting never needs a Rust change. A widget that needs data only Rust can get (like
 the System widget) adds its own `#[tauri::command]` and polls it from its page.
 
+A widget that needs the internet (like Weather) can simply `fetch()` from its page. Keep the last
+good response in the widget's settings (`boot.patch({ cache })`) so it survives restarts and works
+offline, ignore `cache` when deciding whether settings changed, and back off after failures.
+`weather.html` and `weather-shared.js` show the whole pattern.
+
 ## Roadmap
 
 - [x] Remember widget positions between launches
@@ -129,7 +150,8 @@ the System widget) adds its own `#[tauri::command]` and polls it from its page.
 - [x] System widget: CPU, RAM and temperatures
 - [ ] More offline widgets: sticky notes, to-do, countdown, calendar
 - [ ] System widget extras: per-core CPU, GPU load, disk and network
-- [ ] Shared data layer for network widgets (weather, F1, tickers) with caching
+- [x] Weather widget (cached, offline-friendly, rate-limit friendly)
+- [ ] More network widgets that reuse the same pattern: F1 next race, currency/crypto tickers
 - [ ] Sunrise / sunset line on the clock
 - [ ] Real desktop blur (Windows acrylic) option
 - [ ] Launch on Windows startup
@@ -149,6 +171,10 @@ and [Manrope](https://github.com/sharanda/manrope), packaged via [Fontsource](ht
 CPU and RAM stats use the [sysinfo](https://github.com/GuillaumeGomez/sysinfo) crate. CPU/GPU temperatures can
 come from [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) (MPL-2.0), which
 you run separately. Deskly doesn't bundle or redistribute it.
+
+Weather data is provided by [Open-Meteo.com](https://open-meteo.com) under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) (free for non-commercial use), and city search uses
+Open-Meteo's geocoding API, built on [GeoNames](https://www.geonames.org) data.
 
 ## License
 
