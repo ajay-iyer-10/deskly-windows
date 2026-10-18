@@ -1,0 +1,99 @@
+/* Base look shared by every Deskly widget: bundled fonts, theme tokens,
+   the card, big-number cells, pills and buttons. */
+
+@font-face { font-family: "Inter Tight"; font-weight: 500; src: url("../fonts/inter-tight-500.woff2") format("woff2"); }
+@font-face { font-family: "Inter Tight"; font-weight: 700; src: url("../fonts/inter-tight-700.woff2") format("woff2"); }
+@font-face { font-family: "Space Grotesk"; font-weight: 500; src: url("../fonts/space-grotesk-500.woff2") format("woff2"); }
+@font-face { font-family: "Space Grotesk"; font-weight: 700; src: url("../fonts/space-grotesk-700.woff2") format("woff2"); }
+@font-face { font-family: "Manrope"; font-weight: 500; src: url("../fonts/manrope-500.woff2") format("woff2"); }
+@font-face { font-family: "Manrope"; font-weight: 700; src: url("../fonts/manrope-700.woff2") format("woff2"); }
+
+:root {
+  --bg: 238 238 238;
+  --fg: 17 17 17;
+  --accent: 17 17 17;
+  --accent-fg: 238 238 238;
+  --alpha: 1;
+  --radius: 1.5rem;
+  --fw: 700;
+  --cell: .6;
+  --colon: .3;
+  --card-w: 20rem;
+  --time-size: 5rem;
+  --font: "Inter Tight", "Segoe UI", sans-serif;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+  font-family: var(--font);
+  font-size: 14.4px; /* overwritten by the scale setting */
+}
+
+/* #frame is what gets measured to size the OS window; its padding leaves room for the shadow */
+#frame { display: inline-block; padding: 1rem 1.1rem 1.4rem; }
+
+.card {
+  box-sizing: border-box;
+  width: var(--card-w);
+  padding: 1.4rem 1.6rem 1.5rem;
+  background: rgb(var(--bg) / var(--alpha));
+  color: rgb(var(--fg));
+  border-radius: var(--radius);
+  box-shadow: 0 .35rem 1.1rem rgb(0 0 0 / .22);
+  display: flex;
+  flex-direction: column;
+  gap: .85rem;
+  cursor: grab;
+}
+.card:active { cursor: grabbing; }
+
+/* big numbers: fixed-width cells so digits never jiggle */
+.time {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  font-size: var(--time-size);
+  font-weight: var(--fw);
+  line-height: .95;
+  white-space: nowrap;
+}
+.time .d { display: inline-block; width: calc(var(--cell) * 1em); text-align: center; }
+.time .c { display: inline-block; width: calc(var(--colon) * 1em); text-align: center; position: relative; top: -.05em; }
+.time .ap { font-size: .26em; margin-left: .25em; opacity: .6; letter-spacing: .02em; }
+
+.muted { font-size: .8rem; font-weight: 500; color: rgb(var(--fg) / .55); }
+
+.pill { display: inline-flex; padding: .18rem; gap: .1rem; border-radius: 999px; background: rgb(var(--fg) / .08); }
+.pill button {
+  all: unset;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: .68rem;
+  font-weight: 700;
+  padding: .28rem .65rem;
+  border-radius: 999px;
+  color: rgb(var(--fg) / .6);
+}
+.pill button.on { background: rgb(var(--accent)); color: rgb(var(--accent-fg)); }
+
+.btn {
+  all: unset;
+  cursor: pointer;
+  box-sizing: border-box;
+  text-align: center;
+  font-family: inherit;
+  font-size: .8rem;
+  font-weight: 700;
+  padding: .6rem 1.05rem;
+  border-radius: 999px;
+  background: rgb(var(--fg) / .08);
+  color: rgb(var(--fg));
+}
+.btn:hover { background: rgb(var(--fg) / .13); }
+.btn.primary { background: rgb(var(--accent)); color: rgb(var(--accent-fg)); }
+.btn.primary:hover { filter: brightness(1.12); }
