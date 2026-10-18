@@ -3,8 +3,9 @@
 **Free, open source desktop widgets for Windows.**
 
 Deskly puts small, good-looking widgets right on your desktop and keeps them
-out of your way. Add what you want, drag it where you like, and forget about it.
-It lives in your system tray and remembers your setup between launches.
+out of your way. Add what you want, drag it where you like, pin it behind your
+windows, and forget about it. It lives in your system tray and remembers your
+setup between launches.
 
 Built with [Tauri](https://tauri.app), so it stays lightweight instead of
 shipping a full browser for every widget.
@@ -13,13 +14,14 @@ shipping a full browser for every widget.
 
 ## Features
 
-- **Free and open source** — MIT licensed, no ads, no accounts, no tracking
-- **Frameless, always-on-top widgets** with a clean, modern look
+- **Free and open source** — MIT licensed, no ads, no accounts, no analytics or tracking
+- **Frameless widgets** with a clean, modern look
+- **Pin to desktop** — keep any widget behind your other windows instead of on top
 - **Highly customizable** — layouts, themes, fonts, colors, size, opacity and more, with live preview
 - **Drag anywhere** — move widgets with the mouse, right-click to close
 - **Tray-first** — close the manager window and your widgets keep running
-- **Remembers your setup** — active widgets, settings and positions come back on next launch
-- **Works offline** — fonts are bundled, no network calls
+- **Remembers your setup** — active widgets, settings, pin state and positions come back on next launch
+- **Mostly offline** — fonts are bundled and every widget works without a network except Weather, which keeps showing its last forecast when you're offline
 - **Web-tech widgets** — each widget is plain HTML, CSS and JavaScript, so
   they are easy to build and restyle
 
@@ -28,15 +30,63 @@ shipping a full browser for every widget.
 | Widget | Description |
 |---|---|
 | Clock | Big bold time with date, 12h/24h switch and a world cities row |
+| Pomodoro | Focus timer with short and long breaks, session dots, progress bar and a chime |
+| System | Live CPU and RAM usage with history graphs, plus CPU/GPU temperatures |
+| Weather | Current conditions, hourly strip and 5-day forecast for any city (Open-Meteo, no API key) |
+| Calendar | Month view and agenda, with events you add on the widget (all-day or timed, colors, repeats) |
 
-**Clock customization**
+**Clock**
 
 - **Layouts:** Minimal, Standard, Dashboard (adds world cities with UTC offsets and day/night)
 - **Time and date:** 12h/24h, seconds on/off, four date formats
-- **Look:** Light, Dark, Auto (follows Windows) or Custom colors, accent color, 3 bundled fonts plus system font, digit weight, size, opacity, corner radius
 - **World cities:** add, remove and reorder up to 4 cities, pick from any IANA time zone or type a city name
 
-More are planned, see the roadmap below.
+**Pomodoro**
+
+- **Layouts:** Standard (mode switch, progress bar, session dots, today's count) or Compact
+- **Timer:** focus 1–90 min, short break, long break, sessions before a long break
+- **Behavior:** optional auto-start for breaks and focus sessions, generated chime when a session ends
+- **Survives restarts:** a running timer keeps its place if you close and reopen Deskly
+
+**System**
+
+- **Live stats:** CPU usage (with model and core count), RAM used/total/free, each with a history graph
+- **Temperatures:** CPU and GPU, in °C or °F, turning amber and then red as they climb (you set the threshold)
+- **Layouts:** Standard or Compact, refresh every 1–10 seconds
+- **Idle-friendly:** it only samples while the widget is on your desktop
+- **About temperatures:** Windows doesn't let normal apps read CPU/GPU temperatures. Deskly reads them from
+  [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) when it's running
+  (setup in [HOW_TO_RUN.md](HOW_TO_RUN.md)), and otherwise shows whatever sensor data Windows exposes
+
+**Weather**
+
+- **Layouts:** Compact, Standard (current conditions, humidity, wind, rain chance, UV, next 6 hours) or Full
+  (adds a 5-day forecast with temperature range bars and sunrise/sunset)
+- **Location:** search for any city by name. Pick one and you're done, no account or key
+- **Units:** °C or °F, km/h or mph, 12h or 24h
+- **Gentle on the free API:** refreshes every 30 minutes by default (you can slow it down, never faster than
+  every 10), with a 15-second limit on the manual refresh button
+- **Offline-friendly:** the last forecast is saved, shown instantly on launch, and kept on screen with an
+  "Offline" badge if the connection drops. Retries back off automatically
+- **Privacy:** Deskly sends only the coordinates of the place you picked to [Open-Meteo](https://open-meteo.com).
+  No account, no API key, no location detection
+
+**Calendar**
+
+- **Add events right on the widget:** click a day, press **+ Add**, type a title, optionally a time
+  (`9`, `930`, `2:30pm` all work), pick a color and a repeat. Click any event to edit or delete it
+- **Repeats:** daily, weekly, monthly or yearly. A monthly event on the 31st lands on the last day of shorter
+  months, and a Feb 29 birthday lands on Feb 28 in common years
+- **Layouts:** Month (grid with colored event dots, the selected day's events underneath) or Agenda
+  (what's coming up in the next 7 to 60 days, grouped by day)
+- **Display:** week starts Monday or Sunday, optional ISO week numbers, 12h/24h times, light, dark or custom colors
+- **Your events are safe:** they're stored locally, **"Reset to defaults" never deletes them**, saving is
+  crash-safe, and an unreadable data file is backed up instead of overwritten
+- Events are single-day (use a repeat for recurring ones). There are no reminders yet
+
+**Every widget** shares the same appearance controls: Light / Dark / Auto (follows
+Windows) / Custom colors, accent color, 3 bundled fonts plus the system font,
+digit weight, size, opacity and corner radius.
 
 ## Getting started
 
@@ -57,41 +107,75 @@ HOW_TO_RUN.md walks through each.
 ```
 deskly/
 ├─ dist/
-│  ├─ index.html          # Deskly manager window (add/remove, customize)
+│  ├─ index.html              # Deskly manager window (generated from widget schemas)
 │  ├─ shared/
-│  │  └─ clock-shared.js  # Clock settings schema, defaults, time/date logic
-│  ├─ fonts/              # Bundled open-licensed fonts
+│  │  ├─ common.js            # Fonts, themes, appearance, shared widget boot logic
+│  │  ├─ widget.css           # Shared widget look (card, pills, buttons, big numbers)
+│  │  ├─ widget-registry.js   # Every widget's name + settings schema
+│  │  ├─ clock-shared.js      # Clock defaults, time zones, formatting
+│  │  ├─ pomodoro-shared.js   # Pomodoro defaults and timer state machine
+│  │  ├─ system-shared.js     # System widget defaults, units, severity, sparklines
+│  │  ├─ weather-shared.js    # Weather settings, Open-Meteo requests/parsing, icons
+│  │  └─ calendar-shared.js   # Calendar events, date math, recurrence, time parsing
+│  ├─ fonts/                  # Bundled open-licensed fonts
 │  └─ widgets/
-│     └─ clock.html       # One file per widget
+│     ├─ clock.html           # One page per widget
+│     ├─ pomodoro.html
+│     ├─ system.html
+│     ├─ weather.html
+│     └─ calendar.html
 └─ src-tauri/
-   ├─ src/main.rs         # Window management, tray icon, saved state
-   ├─ capabilities/       # Per-window permissions
-   └─ tauri.conf.json     # App and window configuration
+   ├─ src/main.rs             # Widget registry, windows, tray, saved state
+   ├─ src/sampler.rs          # CPU / RAM / temperature sampling (System widget)
+   ├─ src/temps.rs            # Temperature parsing and selection (unit-tested)
+   ├─ capabilities/           # Window permissions
+   └─ tauri.conf.json         # App and manager window configuration
 ```
 
 ## Adding your own widget
 
-1. Create `dist/widgets/yourwidget.html` (copy `clock.html` as a starting point).
-2. In `src-tauri/src/main.rs`, add an open/close function pair and
-   `add_` / `remove_` commands for it, mirroring the clock ones, and register
-   them in `generate_handler![...]`. Widget settings are free-form JSON, so a
-   new widget can reuse the `patch_` / `reset_` settings commands pattern
-   without any schema changes in Rust.
-3. Add the widget's window label to `src-tauri/capabilities/default.json`.
-4. Add a row for it in `dist/index.html`.
+Spawning, positions, saved settings, pinning and live updates are all generic,
+so a new widget is three small pieces:
 
-Once there are a handful of widgets this will be refactored into a generic
-widget registry, so adding one becomes a single file.
+1. **`src-tauri/src/main.rs`** — add one entry to the `WIDGETS` list: an id, a
+   window title, the page url, a starting size and a first-launch position.
+2. **`dist/widgets/<id>.html`** — the widget itself. Link `shared/widget.css`,
+   load `shared/common.js`, and call `WidgetCommon.bootstrap({ id, frame, card, onSettings })`.
+   That gives you window sizing, dragging, right-click to close and live settings
+   for free. `clock.html` and `pomodoro.html` are good starting points.
+3. **`dist/shared/widget-registry.js`** — add the widget's name, description and a
+   settings schema (sections and fields: segmented controls, toggles, sliders,
+   selects, colors, text). Deskly builds the Customize panel from it, including the
+   shared appearance section. No UI code needed.
+
+Widget settings are free-form JSON owned by the frontend, so adding or changing a
+setting never needs a Rust change. If a widget stores things the user *creates* (like
+calendar events), list those keys in `preserve` in its registry entry so
+"Reset to defaults" keeps them. A widget that needs data only Rust can get (like
+the System widget) adds its own `#[tauri::command]` and polls it from its page.
+
+A widget that needs the internet (like Weather) can simply `fetch()` from its page. Keep the last
+good response in the widget's settings (`boot.patch({ cache })`) so it survives restarts and works
+offline, ignore `cache` when deciding whether settings changed, and back off after failures.
+`weather.html` and `weather-shared.js` show the whole pattern.
 
 ## Roadmap
 
 - [x] Remember widget positions between launches
-- [x] Per-widget settings (clock: layouts, themes, fonts, colors, size, opacity, cities)
+- [x] Per-widget settings with live preview
+- [x] Generic widget registry
+- [x] Pin to desktop
+- [x] System widget: CPU, RAM and temperatures
+- [x] Calendar widget with events
+- [ ] Calendar: reminders, multi-day events, import/export (.ics)
+- [ ] More offline widgets: sticky notes, to-do, countdown
+- [ ] System widget extras: per-core CPU, GPU load, disk and network
+- [x] Weather widget (cached, offline-friendly, rate-limit friendly)
+- [ ] More network widgets that reuse the same pattern: F1 next race, currency/crypto tickers
 - [ ] Sunrise / sunset line on the clock
 - [ ] Real desktop blur (Windows acrylic) option
-- [ ] More widgets: weather, system stats, notes, calendar
-- [ ] Generic widget registry / plugin folder
 - [ ] Launch on Windows startup
+- [ ] Future idea: a macOS-style dock (pinned apps, folders and links, hover magnification, running-app indicators, auto-hide), as an addition to the Windows taskbar rather than a replacement
 - [ ] Installer releases on GitHub
 
 ## Contributing
@@ -104,6 +188,14 @@ issue first so we can talk it through. New widgets are a great first contributio
 Bundled fonts are licensed under the SIL Open Font License 1.1 (license files in
 `dist/fonts/`): [Inter Tight](https://github.com/rsms/inter), [Space Grotesk](https://github.com/floriankarsten/space-grotesk)
 and [Manrope](https://github.com/sharanda/manrope), packaged via [Fontsource](https://fontsource.org).
+
+CPU and RAM stats use the [sysinfo](https://github.com/GuillaumeGomez/sysinfo) crate. CPU/GPU temperatures can
+come from [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) (MPL-2.0), which
+you run separately. Deskly doesn't bundle or redistribute it.
+
+Weather data is provided by [Open-Meteo.com](https://open-meteo.com) under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) (free for non-commercial use), and city search uses
+Open-Meteo's geocoding API, built on [GeoNames](https://www.geonames.org) data.
 
 ## License
 
