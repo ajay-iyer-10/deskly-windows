@@ -106,7 +106,7 @@
   }
 
   // ---------- DOM: the boilerplate every widget needs ----------
-  // opts: { id, frame, card, onSettings(settings, isInitial, isReset) }
+  // opts: { id, frame, card, onSettings(settings, isInitial, isReset), allowClose?() }
   // - sizes the OS window to fit `frame` (via resize_widget)
   // - drag to move, right-click to close
   // - loads saved settings, then keeps them live via "widget-settings" events
@@ -133,13 +133,19 @@
       if (p && p.id === id) opts.onSettings(p.settings || {}, false, !!p.reset);
     });
 
+    // never start a drag from something you click or type into
     opts.card.addEventListener("mousedown", (e) => {
-      if (e.button !== 0 || e.target.closest("button, input, select")) return;
+      if (e.button !== 0 || (e.target.closest && e.target.closest("button, input, select, textarea, [data-nodrag]"))) return;
       appWindow.startDragging();
     });
 
+    // right-click closes the widget, except inside text fields (leave the normal
+    // paste/copy menu alone) and while the widget says it's busy (allowClose() === false)
     window.addEventListener("contextmenu", (e) => {
+      const t = e.target;
+      if (t && t.closest && t.closest("input, textarea")) return;
       e.preventDefault();
+      if (opts.allowClose && !opts.allowClose()) return;
       invoke("set_widget_active", { id, active: false });
     });
 

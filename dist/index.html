@@ -110,6 +110,7 @@
 <script src="shared/pomodoro-shared.js"></script>
 <script src="shared/system-shared.js"></script>
 <script src="shared/weather-shared.js"></script>
+<script src="shared/calendar-shared.js"></script>
 <script src="shared/widget-registry.js"></script>
 <script>
   const CS = window.ClockShared;          // used by the cities editor
@@ -245,6 +246,11 @@
           </div>
           <div data-place-results style="margin-top:8px"></div>
           <div class="msg info" data-place-msg>Weather data by Open-Meteo.com. Deskly sends it only the coordinates of the place you pick. No account or API key.</div></div>`);
+      case "events-admin":
+        return elFrom(`<div>
+          <div class="field"><span class="lbl">Saved events<span class="sub" data-ev-count>0 events</span></span>
+            <button class="btn-ghost" data-ev-clear>Delete all events…</button></div>
+          <div class="msg info">Add and edit events on the widget itself. "Reset to defaults" never deletes your events.</div></div>`);
       case "cities":
         return elFrom(`<div>
           <div class="field"><span class="lbl">Your location label<span class="sub">Blank uses your time zone's city</span></span>
@@ -273,6 +279,7 @@
         if (f.showIf) current.shows.push({ el, field: f });
         if (f.type === "cities") wireCities(el, f);
         if (f.type === "place") wirePlace(el, f);
+        if (f.type === "events-admin") wireEventsAdmin(el);
         s.appendChild(el);
       }
       if (sec.dimIf) current.dims.push({ el: s, section: sec });
@@ -359,6 +366,7 @@
     refreshDerived();
     renderCities();
     renderPlace();
+    renderEventsAdmin();
   }
 
   // ============================================================
@@ -472,14 +480,48 @@
     });
   }
 
+
+  // ============================================================
+  // saved events admin (calendar only)
+  // ============================================================
+  let evClearTimer = null;
+
+  function renderEventsAdmin() {
+    const c = document.querySelector("[data-ev-count]");
+    if (!c) return;
+    const n = (current.S.events || []).length;
+    c.textContent = n === 1 ? "1 event" : n + " events";
+    const btn = document.querySelector("[data-ev-clear]");
+    btn.disabled = n === 0;
+    btn.textContent = "Delete all events…";
+  }
+
+  function wireEventsAdmin(root) {
+    const btn = root.querySelector("[data-ev-clear]");
+    btn.addEventListener("click", () => {
+      if (btn.dataset.armed !== "1") {          // first click arms it, second click confirms
+        btn.dataset.armed = "1"; btn.textContent = "Click again to delete all";
+        clearTimeout(evClearTimer);
+        evClearTimer = setTimeout(() => { btn.dataset.armed = "0"; renderEventsAdmin(); }, 4000);
+        return;
+      }
+      btn.dataset.armed = "0"; clearTimeout(evClearTimer);
+      patch({ events: [], eventsRev: "manager-" + Date.now() });
+      renderEventsAdmin();
+    });
+  }
+
   // ============================================================
   // reset
   // ============================================================
   $("#resetBtn").addEventListener("click", async () => {
     if (!current) return;
     lastLocalPatch = performance.now();
-    await invoke("reset_widget_settings", { id: current.def.id });
-    current.S = current.def.merge({});
+    const kept = current.def.preserve || [];
+    await invoke("reset_widget_settings", { id: current.def.id, keep: kept });
+    const keptValues = {};
+    for (const k of kept) if (current.S[k] !== undefined) keptValues[k] = current.S[k];
+    current.S = current.def.merge(keptValues);
     refreshUI();
   });
 

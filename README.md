@@ -33,6 +33,7 @@ shipping a full browser for every widget.
 | Pomodoro | Focus timer with short and long breaks, session dots, progress bar and a chime |
 | System | Live CPU and RAM usage with history graphs, plus CPU/GPU temperatures |
 | Weather | Current conditions, hourly strip and 5-day forecast for any city (Open-Meteo, no API key) |
+| Calendar | Month view and agenda, with events you add on the widget (all-day or timed, colors, repeats) |
 
 **Clock**
 
@@ -70,6 +71,19 @@ shipping a full browser for every widget.
 - **Privacy:** Deskly sends only the coordinates of the place you picked to [Open-Meteo](https://open-meteo.com).
   No account, no API key, no location detection
 
+**Calendar**
+
+- **Add events right on the widget:** click a day, press **+ Add**, type a title, optionally a time
+  (`9`, `930`, `2:30pm` all work), pick a color and a repeat. Click any event to edit or delete it
+- **Repeats:** daily, weekly, monthly or yearly. A monthly event on the 31st lands on the last day of shorter
+  months, and a Feb 29 birthday lands on Feb 28 in common years
+- **Layouts:** Month (grid with colored event dots, the selected day's events underneath) or Agenda
+  (what's coming up in the next 7 to 60 days, grouped by day)
+- **Display:** week starts Monday or Sunday, optional ISO week numbers, 12h/24h times, light, dark or custom colors
+- **Your events are safe:** they're stored locally, **"Reset to defaults" never deletes them**, saving is
+  crash-safe, and an unreadable data file is backed up instead of overwritten
+- Events are single-day (use a repeat for recurring ones). There are no reminders yet
+
 **Every widget** shares the same appearance controls: Light / Dark / Auto (follows
 Windows) / Custom colors, accent color, 3 bundled fonts plus the system font,
 digit weight, size, opacity and corner radius.
@@ -101,13 +115,15 @@ deskly/
 │  │  ├─ clock-shared.js      # Clock defaults, time zones, formatting
 │  │  ├─ pomodoro-shared.js   # Pomodoro defaults and timer state machine
 │  │  ├─ system-shared.js     # System widget defaults, units, severity, sparklines
-│  │  └─ weather-shared.js    # Weather settings, Open-Meteo requests/parsing, icons
+│  │  ├─ weather-shared.js    # Weather settings, Open-Meteo requests/parsing, icons
+│  │  └─ calendar-shared.js   # Calendar events, date math, recurrence, time parsing
 │  ├─ fonts/                  # Bundled open-licensed fonts
 │  └─ widgets/
 │     ├─ clock.html           # One page per widget
 │     ├─ pomodoro.html
 │     ├─ system.html
-│     └─ weather.html
+│     ├─ weather.html
+│     └─ calendar.html
 └─ src-tauri/
    ├─ src/main.rs             # Widget registry, windows, tray, saved state
    ├─ src/sampler.rs          # CPU / RAM / temperature sampling (System widget)
@@ -133,7 +149,9 @@ so a new widget is three small pieces:
    shared appearance section. No UI code needed.
 
 Widget settings are free-form JSON owned by the frontend, so adding or changing a
-setting never needs a Rust change. A widget that needs data only Rust can get (like
+setting never needs a Rust change. If a widget stores things the user *creates* (like
+calendar events), list those keys in `preserve` in its registry entry so
+"Reset to defaults" keeps them. A widget that needs data only Rust can get (like
 the System widget) adds its own `#[tauri::command]` and polls it from its page.
 
 A widget that needs the internet (like Weather) can simply `fetch()` from its page. Keep the last
@@ -148,13 +166,16 @@ offline, ignore `cache` when deciding whether settings changed, and back off aft
 - [x] Generic widget registry
 - [x] Pin to desktop
 - [x] System widget: CPU, RAM and temperatures
-- [ ] More offline widgets: sticky notes, to-do, countdown, calendar
+- [x] Calendar widget with events
+- [ ] Calendar: reminders, multi-day events, import/export (.ics)
+- [ ] More offline widgets: sticky notes, to-do, countdown
 - [ ] System widget extras: per-core CPU, GPU load, disk and network
 - [x] Weather widget (cached, offline-friendly, rate-limit friendly)
 - [ ] More network widgets that reuse the same pattern: F1 next race, currency/crypto tickers
 - [ ] Sunrise / sunset line on the clock
 - [ ] Real desktop blur (Windows acrylic) option
 - [ ] Launch on Windows startup
+- [ ] Future idea: a macOS-style dock (pinned apps, folders and links, hover magnification, running-app indicators, auto-hide), as an addition to the Windows taskbar rather than a replacement
 - [ ] Installer releases on GitHub
 
 ## Contributing

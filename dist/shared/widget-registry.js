@@ -2,9 +2,10 @@
    The manager builds the whole settings panel from these schemas, so a new
    widget needs no new UI code (unless it needs a brand-new field type).
 
-   Field types: seg, toggle, select, range, text, color (allowAuto), colorpair, cities, place
+   Field types: seg, toggle, select, range, text, color (allowAuto), colorpair, cities, place, events-admin
    Common field props: key, label, sub, showIf(S)
-   Section props:      title, dimIf(S), fields[]                                       */
+   Section props:      title, dimIf(S), fields[]
+   Widget props:       preserve[] = settings keys that "Reset to defaults" must keep (user content)                                       */
 (function (root) {
   "use strict";
   const C = root.WidgetCommon;
@@ -12,6 +13,7 @@
   const Pomo = root.PomodoroShared;
   const Sys = root.SystemShared;
   const Weather = root.WeatherShared;
+  const Cal = root.CalendarShared;
   const opt = (v, label) => ({ v, label });
 
   const appearance = {
@@ -128,7 +130,33 @@
     ]
   };
 
+  // the shared appearance section minus controls a widget doesn't use
+  const appearanceWithout = (...skip) => Object.assign({}, appearance, { fields: appearance.fields.filter(f => !skip.includes(f.key)) });
+
+  const calendar = {
+    id: "calendar",
+    name: "Calendar",
+    description: "Month view with events you can add on the widget",
+    merge: Cal.merge,
+    preserve: ["events"],
+    schema: [
+      { title: "Layout", fields: [
+        { type: "seg", key: "layout", label: "Style", sub: "Agenda lists what's coming up",
+          options: [opt("month", "Month"), opt("agenda", "Agenda")] },
+        { type: "range", key: "agendaDays", label: "Look ahead", min: 7, max: 60, step: 1, unit: " days", showIf: S => S.layout === "agenda" }
+      ] },
+      { title: "Display", fields: [
+        { type: "seg", key: "weekStart", label: "Week starts on", options: [opt("mon", "Monday"), opt("sun", "Sunday")] },
+        { type: "toggle", key: "showWeekNumbers", label: "Week numbers", showIf: S => S.layout === "month" },
+        { type: "toggle", key: "showDots", label: "Event dots on days", showIf: S => S.layout === "month" },
+        { type: "seg", key: "hour12", label: "Time format", options: [opt(false, "24h"), opt(true, "12h")] }
+      ] },
+      { title: "Events", fields: [{ type: "events-admin", key: "events" }] },
+      appearanceWithout("fontWeight")
+    ]
+  };
+
   // order = order in the manager
-  root.WidgetRegistry = [clock, pomodoro, system, weather];
+  root.WidgetRegistry = [clock, pomodoro, system, weather, calendar];
   if (typeof module !== "undefined") module.exports = root.WidgetRegistry;
 })(typeof window !== "undefined" ? window : globalThis);

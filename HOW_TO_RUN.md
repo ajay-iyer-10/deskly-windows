@@ -96,6 +96,21 @@ Custom colors), accent color, font, digit weight, size, opacity and corner radiu
   keeps showing it with an "Offline · updated 2 h ago" badge and retries on its own.
 - Needs an internet connection the first time, and sends only the coordinates of your chosen place to Open-Meteo.
 
+**Calendar**
+- **Add an event:** click a day, press **+ Add**, type a title. Times are optional and forgiving
+  (`9`, `930`, `9:30`, `2:30pm`); leave them empty or press **All day** for an all-day event. Pick a color
+  and a repeat (none, daily, weekly, monthly, yearly), then **Add event** (or press Enter).
+- **Change the day while adding:** just click another day in the grid. In the Agenda layout use the
+  arrows next to the date.
+- **Edit or delete:** click an event in the list. Delete asks you to click twice. Deleting a repeating
+  event deletes the whole series.
+- **Navigate:** the arrows move between months; **Today** jumps back.
+- **Customize:** Month or Agenda layout, how far ahead the agenda looks, week start (Monday or Sunday),
+  week numbers, event dots, 12h/24h.
+- **Your events are kept when you press Reset to defaults.** To remove them all, use
+  **Customize, Events, Delete all events** (it asks you to click twice).
+- While the add/edit form is open, right-clicking the widget won't close it, so you can't lose what you typed.
+
 ## 5. Temperatures (optional, but needed for real CPU/GPU temps)
 
 CPU and RAM work out of the box. **Temperatures are different:** Windows doesn't let
@@ -136,6 +151,7 @@ The installer and executable are created under
 | A widget window seems stuck from an old run | End any leftover `deskly.exe` in Task Manager and relaunch. |
 | System widget shows no temperatures | Check LibreHardwareMonitor is running as administrator and **Options, Remote Web Server, Run** is ticked. Test it by opening http://localhost:8085/data.json in a browser: you should see JSON. If you changed the port, set the same one in Customize. |
 | Temperatures show but say "SYSTEM TEMP" | That's the generic Windows sensor, not the CPU. Set up LibreHardwareMonitor (section 5) for CPU and GPU. |
+| My calendar events are gone | Check `widgets_state.corrupt.json` next to `widgets_state.json` (see "Where Deskly stores its data"). If Deskly ever can't read its data file it keeps a copy there instead of overwriting it, and your events are inside. |
 | Weather says "Couldn't reach Open-Meteo" | Check your connection (and any firewall or proxy). It retries by itself after 1, 2, 5 and then 10 minutes, or press ↻. |
 | Weather says "Open-Meteo said: ..." | The service rejected the request (for example while it's having issues). Try again later, and check https://status.open-meteo.com. |
 | City search finds nothing | Search with just the city name (try the English spelling). Search needs an internet connection. |
@@ -149,5 +165,7 @@ The installer and executable are created under
 Which widgets are on, their settings, pin state and positions are saved as
 `widgets_state.json` in your Windows app config folder (under `%APPDATA%`, in a
 folder named after the app identifier `com.deskly.app`). Delete that file to
-reset Deskly to a clean state. Files saved by earlier Deskly versions are
-upgraded automatically.
+reset Deskly to a clean state (this also deletes your calendar events, so copy it first
+if you want them). Files saved by earlier Deskly versions are upgraded automatically.
+Deskly saves safely (to a temporary file first), and if the data file ever turns out to be
+unreadable it keeps a copy as `widgets_state.corrupt.json` rather than replacing it.

@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<link rel="stylesheet" href="../shared/widget.css" />
+<style>
+  .head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+  .mtitle { font-size: 1.15rem; font-weight: 700; line-height: 1.1; }
+  .nav { display: flex; align-items: center; gap: .3rem; }
+  .nb { all: unset; cursor: pointer; box-sizing: border-box; width: 1.6rem; height: 1.6rem; border-radius: 50%; text-align: center; line-height: 1.55rem; font-size: 1rem; font-weight: 700; background: rgb(var(--fg) / .08); }
+  .nb:hover { background: rgb(var(--fg) / .14); }
+  .chip { all: unset; cursor: pointer; box-sizing: border-box; font-family: inherit; font-size: .66rem; font-weight: 700; padding: .34rem .7rem; border-radius: 999px; background: rgb(var(--fg) / .08); color: rgb(var(--fg)); white-space: nowrap; }
+  .chip:hover { background: rgb(var(--fg) / .14); }
+  .chip.on { background: rgb(var(--accent)); color: rgb(var(--accent-fg)); }
+
+  .wk, .grid { display: grid; grid-template-columns: var(--cols); }
+  .wk { text-align: center; font-size: .56rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: rgb(var(--fg) / .5); }
+  .grid { gap: .12rem; }
+  .wn { display: flex; align-items: center; justify-content: center; font-size: .55rem; font-weight: 500; opacity: .4; }
+  .cell { all: unset; cursor: pointer; box-sizing: border-box; height: 2.35rem; border-radius: .7rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .14rem; font-size: .8rem; font-weight: 600; }
+  .cell:hover { background: rgb(var(--fg) / .08); }
+  .cell.out { opacity: .32; }
+  .cell.today { background: rgb(var(--accent)); color: rgb(var(--accent-fg)); }
+  .cell.sel { box-shadow: inset 0 0 0 .13rem rgb(var(--accent)); }
+  .cell.sel.today { box-shadow: none; }   /* today is already filled; a ring on top looks heavy */
+  .dots { display: flex; align-items: center; justify-content: center; gap: .16rem; height: .3rem; }
+  .dot { width: .28rem; height: .28rem; border-radius: 50%; background: var(--c, rgb(var(--accent))); }
+  .cell.today .dot { box-shadow: 0 0 0 .08rem rgb(var(--accent-fg) / .55); }
+
+  .sep { height: 1px; background: rgb(var(--fg) / .1); margin: .15rem 0; }
+  .dayhead { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+  .dayhead .dl { font-size: .85rem; font-weight: 700; }
+  .dayhead .dl small { font-size: .68rem; font-weight: 500; color: rgb(var(--fg) / .5); margin-left: .3rem; }
+  .btn.small { padding: .4rem .85rem; font-size: .7rem; }
+  .btn.danger { color: #ef4444; }
+
+  .evlist { display: flex; flex-direction: column; gap: .3rem; max-height: 8.5rem; overflow-y: auto; padding-right: .15rem; }
+  .card.agenda .evlist { max-height: 22rem; }
+  .evlist::-webkit-scrollbar { width: .3rem; }
+  .evlist::-webkit-scrollbar-thumb { background: rgb(var(--fg) / .25); border-radius: 999px; }
+  .group .gl { font-size: .62rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: rgb(var(--fg) / .5); margin: .35rem 0 .25rem; }
+  .group:first-child .gl { margin-top: 0; }
+  .ev { all: unset; cursor: pointer; box-sizing: border-box; display: flex; align-items: center; gap: .55rem; width: 100%; padding: .5rem .65rem; margin-bottom: .3rem; border-radius: .8rem; background: rgb(var(--fg) / .06); }
+  .ev:hover { background: rgb(var(--fg) / .1); }
+  .ev .bar { width: .22rem; align-self: stretch; min-height: 1.1rem; border-radius: 999px; background: var(--c, rgb(var(--accent))); }
+  .ev .tm { font-size: .62rem; font-weight: 700; opacity: .6; min-width: 3.5rem; white-space: nowrap; }
+  .ev .tt { font-size: .8rem; font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ev .rp { font-size: .7rem; opacity: .5; }
+  .none { font-size: .75rem; color: rgb(var(--fg) / .5); padding: .3rem 0 .1rem; }
+
+  .form { display: flex; flex-direction: column; gap: .5rem; }
+  .frow { display: flex; align-items: center; gap: .4rem; }
+  .inp { all: unset; box-sizing: border-box; width: 100%; min-width: 0; padding: .52rem .75rem; border-radius: .75rem; background: rgb(var(--fg) / .08); color: rgb(var(--fg)); font-family: inherit; font-size: .8rem; font-weight: 500; cursor: text; -webkit-user-select: text; user-select: text; caret-color: rgb(var(--fg)); }
+  .inp::placeholder { color: rgb(var(--fg) / .4); }
+  .inp:focus { box-shadow: inset 0 0 0 .12rem rgb(var(--accent) / .7); }
+  .inp.tin { width: 4.6rem; text-align: center; }
+  .dlabel { font-size: .8rem; font-weight: 700; flex: 1; }
+  .tiny { font-size: .62rem; }
+  .cdot { all: unset; cursor: pointer; box-sizing: border-box; width: 1.1rem; height: 1.1rem; border-radius: 50%; background: var(--c, rgb(var(--accent))); }
+  .cdot.on { box-shadow: 0 0 0 .14rem rgb(var(--bg)), 0 0 0 .27rem rgb(var(--fg) / .6); }
+  .frow.colors { gap: .55rem; padding: .15rem .25rem; }
+  .err { font-size: .68rem; color: #ef4444; min-height: .9rem; }
+  .actions { justify-content: flex-end; }
+</style>
+</head>
+<body>
+  <div id="frame"><div class="card" id="card"></div></div>
+
+  <script src="../shared/common.js"></script>
+  <script src="../shared/calendar-shared.js"></script>
+  <script>
+    const WC = window.WidgetCommon, K = window.CalendarShared;
+    const esc = WC.escapeHtml;
+    const card = document.getElementById("card");
+    const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const REPEAT_LABELS = { none: "None", daily: "Daily", weekly: "Weekly", monthly: "Monthly", yearly: "Yearly" };
+
+    let S = K.merge({});
+    let today = K.todayStr();
+    let selected = today;
+    let view = { y: K.parseDate(today).y, m: K.parseDate(today).m };
+    let form = null;                 // { mode: "add"|"edit", id?, draft, error, confirmDelete, focus }
+    let boot = null;
+    const myRevs = new Set();        // ids of saves made here, so their echo from the backend is ignored
+
+    // ---------- saving ----------
+    function saveEvents() {
+      const rev = K.makeId();
+      myRevs.add(rev);
+      if (myRevs.size > 50) myRevs.delete(myRevs.values().next().value);
+      if (boot) boot.patch({ events: S.events, eventsRev: rev });
+    }
+
+    // ---------- helpers ----------
+    const colorStyle = (c) => c ? ' style="--c:' + c + '"' : "";
+
+    function dayHeading(date) {
+      const rel = K.relativeLabel(date, today);
+      const full = K.dateLabel(date, K.parseDate(date).y !== K.parseDate(today).y);
+      return rel === full ? esc(full) : esc(rel) + "<small>" + esc(full) + "</small>";
+    }
+
+    function eventRow(ev) {
+      return '<button class="ev" data-edit="' + esc(ev.id) + '"' + colorStyle(ev.color) + ' title="' + esc(ev.notes || ev.title) + '">' +
+        '<span class="bar"></span><span class="tm">' + esc(K.timeRange(ev, S.hour12)) + '</span><span class="tt">' + esc(ev.title) + "</span>" +
+        (ev.repeat !== "none" ? '<span class="rp" title="Repeats ' + ev.repeat + '">↻</span>' : "") + "</button>";
+    }
+
+    // ---------- month layout ----------
+    function monthHtml() {
+      const cells = K.monthGrid(view.y, view.m, S.weekStart);
+      const cols = S.showWeekNumbers ? "1.4rem repeat(7, minmax(0, 1fr))" : "repeat(7, minmax(0, 1fr))";
+      const labels = K.weekdayLabels(S.weekStart);
+      const thursday = S.weekStart === "sun" ? 4 : 3;
+      const showToday = view.y !== K.parseDate(today).y || view.m !== K.parseDate(today).m || selected !== today;
+
+      let html = '<div class="head"><span class="mtitle">' + K.monthLabel(view.y, view.m) + '</span><span class="nav">' +
+        (showToday ? '<button class="chip" data-nav="today">Today</button>' : "") +
+        '<button class="nb" data-nav="prev" title="Previous month">‹</button><button class="nb" data-nav="next" title="Next month">›</button></span></div>';
+
+      html += '<div class="wk" style="--cols:' + cols + '">' + (S.showWeekNumbers ? "<span></span>" : "") + labels.map(l => "<span>" + l + "</span>").join("") + "</div>";
+      html += '<div class="grid" style="--cols:' + cols + '">';
+      for (let r = 0; r < 6; r++) {
+        if (S.showWeekNumbers) html += '<span class="wn">' + K.isoWeek(cells[r * 7 + thursday].date) + "</span>";
+        for (let c = 0; c < 7; c++) {
+          const cell = cells[r * 7 + c];
+          const evs = S.showDots ? K.eventsOn(S.events, cell.date) : [];
+          const dots = evs.slice(0, 3).map(e => '<i class="dot"' + colorStyle(e.color) + "></i>").join("");
+          html += '<button class="cell' + (cell.inMonth ? "" : " out") + (cell.date === today ? " today" : "") + (cell.date === selected ? " sel" : "") +
+            '" data-date="' + cell.date + '"><span>' + cell.day + '</span><span class="dots">' + dots + "</span></button>";
+        }
+      }
+      html += "</div><div class=\"sep\"></div>";
+
+      if (form) return html + formHtml();
+      const evs = K.eventsOn(S.events, selected);
+      html += '<div class="dayhead"><span class="dl">' + dayHeading(selected) + '</span><button class="btn small primary" data-add>+ Add</button></div>';
+      html += evs.length ? '<div class="evlist">' + evs.map(eventRow).join("") + "</div>" : '<div class="none">No events</div>';
+      return html;
+    }
+
+    // ---------- agenda layout ----------
+    function agendaHtml() {
+      let html = '<div class="head"><span class="mtitle">Agenda</span><span class="nav"><button class="btn small primary" data-add>+ Add</button></span></div>';
+      if (form) return html + formHtml();
+      const items = K.upcoming(S.events, today, S.agendaDays, 60);
+      html += '<div class="muted">' + K.dateLabel(today, true) + " · next " + S.agendaDays + " days</div>";
+      if (!items.length) return html + '<div class="none">Nothing coming up. Add an event to get started.</div>';
+      const groups = [];
+      for (const it of items) {
+        const g = groups[groups.length - 1];
+        if (g && g.date === it.date) g.items.push(it.ev); else groups.push({ date: it.date, items: [it.ev] });
+      }
+      return html + '<div class="evlist">' + groups.map(g =>
+        '<div class="group"><div class="gl">' + esc(K.relativeLabel(g.date, today)) + (K.relativeLabel(g.date, today) === K.dateLabel(g.date) ? "" : " · " + esc(K.dateLabel(g.date))) +
+        "</div>" + g.items.map(eventRow).join("") + "</div>").join("") + "</div>";
+    }
+
+    // ---------- add / edit form ----------
+    function formHtml() {
+      const d = form.draft;
+      const month = S.layout === "month";
+      const dateRow = month
+        ? '<span class="dlabel">' + esc(K.dateLabel(d.date, true)) + '</span><span class="muted tiny">tap a day above to change</span>'
+        : '<button class="nb" data-step="-1">‹</button><span class="dlabel">' + esc(K.dateLabel(d.date, true)) + '</span><button class="nb" data-step="1">›</button>';
+      const colors = ["" ].concat(K.COLORS).map(c => '<button class="cdot' + (d.color === c ? " on" : "") + '" data-color="' + c + '"' + colorStyle(c) + ' title="' + (c || "Default") + '"></button>').join("");
+      return '<div class="form">' +
+        '<input class="inp" id="fTitle" placeholder="Event title" maxlength="120" value="' + esc(d.title) + '" />' +
+        '<div class="frow">' + dateRow + "</div>" +
+        '<div class="frow"><button class="chip' + (d.allDay ? " on" : "") + '" data-allday>All day</button>' +
+          (d.allDay ? "" : '<input class="inp tin" id="fStart" placeholder="09:00" value="' + esc(d.start) + '" /><span class="muted tiny">to</span><input class="inp tin" id="fEnd" placeholder="10:00" value="' + esc(d.end) + '" />') + "</div>" +
+        '<div class="frow colors">' + colors + "</div>" +
+        '<div class="frow"><div class="pill">' + K.REPEATS.map(r => '<button data-repeat="' + r + '" class="' + (d.repeat === r ? "on" : "") + '">' + REPEAT_LABELS[r] + "</button>").join("") + "</div></div>" +
+        '<input class="inp" id="fNotes" placeholder="Notes (optional)" maxlength="500" value="' + esc(d.notes) + '" />' +
+        '<div class="err">' + esc(form.error || "") + "</div>" +
+        '<div class="frow actions">' + (form.mode === "edit" ? '<button class="btn small danger" data-delete>' + (form.confirmDelete ? "Click again to delete" : "Delete") + "</button>" : "") +
+          '<span style="flex:1"></span><button class="btn small" data-cancel>Cancel</button><button class="btn small primary" data-save>' + (form.mode === "edit" ? "Save" : "Add event") + "</button></div></div>";
+    }
+
+    // ---------- render ----------
+    function render() {
+      card.className = "card " + S.layout;
+      card.innerHTML = S.layout === "agenda" ? agendaHtml() : monthHtml();
+      if (form && form.focus) {
+        const el = document.getElementById(form.focus);
+        if (el) { el.focus(); el.setSelectionRange && el.setSelectionRange(el.value.length, el.value.length); }
+        form.focus = null;
+      }
+    }
+
+    function applyAppearance() {
+      WC.applyAppearance(S, darkQuery.matches);
+      document.documentElement.style.setProperty("--card-w", K.LAYOUT_WIDTH_REM[S.layout] + "rem");
+    }
+
+    // ---------- actions ----------
+    function openAdd() {
+      form = { mode: "add", draft: { title: "", date: S.layout === "month" ? selected : today, allDay: false, start: "", end: "", color: "", repeat: "none", notes: "" }, error: "", confirmDelete: false, focus: "fTitle" };
+      render();
+    }
+    function openEdit(id) {
+      const ev = S.events.find(e => e.id === id);
+      if (!ev) return;
+      form = { mode: "edit", id, draft: { title: ev.title, date: ev.date, allDay: !ev.start, start: ev.start, end: ev.end, color: ev.color, repeat: ev.repeat, notes: ev.notes }, error: "", confirmDelete: false, focus: "fTitle" };
+      if (S.layout === "month") { selected = ev.date; view = { y: K.parseDate(ev.date).y, m: K.parseDate(ev.date).m }; }
+      render();
+    }
+    function closeForm() { form = null; render(); }
+
+    function showDate(date) {
+      const p = K.parseDate(date);
+      selected = date;
+      view = { y: p.y, m: p.m };
+    }
+
+    function save() {
+      const r = K.validateDraft(Object.assign({}, form.draft, { id: form.id }));
+      if (!r.ok) { form.error = r.error; form.focus = form.focus; render(); return; }
+      const ev = r.event;
+      if (form.mode === "edit") S.events = S.events.map(e => e.id === form.id ? ev : e);
+      else S.events = S.events.concat([ev]);
+      saveEvents();
+      if (S.layout === "month") showDate(ev.date);
+      form = null;
+      render();
+    }
+
+    let deleteTimer = null;
+    function remove() {
+      if (!form.confirmDelete) {
+        form.confirmDelete = true; render();
+        clearTimeout(deleteTimer);
+        deleteTimer = setTimeout(() => { if (form && form.confirmDelete) { form.confirmDelete = false; render(); } }, 4000);
+        return;
+      }
+      S.events = S.events.filter(e => e.id !== form.id);
+      saveEvents();
+      form = null;
+      render();
+    }
+
+    function navMonth(delta) {
+      const next = K.addMonths(view.y, view.m, delta);
+      const day = Math.min(K.parseDate(selected).d, K.daysInMonth(next.y, next.m));
+      view = next;
+      selected = K.fmtDate(next.y, next.m, day);       // keep the same day of the month when it exists
+      if (form) form.draft.date = selected;
+      render();
+    }
+
+    // ---------- interaction ----------
+    card.addEventListener("click", (e) => {
+      const t = e.target.closest("button");
+      if (!t) return;
+      if (t.dataset.nav === "prev") return navMonth(-1);
+      if (t.dataset.nav === "next") return navMonth(1);
+      if (t.dataset.nav === "today") { showDate(today); if (form) form.draft.date = today; return render(); }
+      if (t.dataset.date) { showDate(t.dataset.date); if (form) form.draft.date = selected; return render(); }
+      if (t.hasAttribute("data-add")) return openAdd();
+      if (t.dataset.edit) return openEdit(t.dataset.edit);
+      if (!form) return;
+      if (t.hasAttribute("data-save")) return save();
+      if (t.hasAttribute("data-cancel")) return closeForm();
+      if (t.hasAttribute("data-delete")) return remove();
+      if (t.hasAttribute("data-allday")) { form.draft.allDay = !form.draft.allDay; form.error = ""; return render(); }
+      if (t.dataset.color !== undefined && t.classList.contains("cdot")) { form.draft.color = t.dataset.color; return render(); }
+      if (t.dataset.repeat) { form.draft.repeat = t.dataset.repeat; return render(); }
+      if (t.dataset.step) { form.draft.date = K.addDays(form.draft.date, Number(t.dataset.step)); return render(); }
+    });
+
+    card.addEventListener("input", (e) => {
+      if (!form) return;
+      const map = { fTitle: "title", fStart: "start", fEnd: "end", fNotes: "notes" };
+      if (map[e.target.id]) { form.draft[map[e.target.id]] = e.target.value; if (form.error) { form.error = ""; const el = card.querySelector(".err"); if (el) el.textContent = ""; } }
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (!form) return;
+      if (e.key === "Escape") { e.preventDefault(); closeForm(); }
+      else if (e.key === "Enter" && e.target.closest("input")) { e.preventDefault(); save(); }
+    });
+
+    // ---------- settings ----------
+    const settingsKey = (s) => JSON.stringify(Object.assign({}, s, { events: undefined, eventsRev: undefined }));
+
+    function onSettings(partial, initial) {
+      const next = K.merge(partial);
+      const changed = settingsKey(next) !== settingsKey(S);
+      const echo = !initial && partial.eventsRev && myRevs.has(partial.eventsRev);   // our own save coming back
+      const eventsChanged = !echo && JSON.stringify(next.events) !== JSON.stringify(S.events);
+      const keepEvents = echo ? S.events : next.events;
+      S = next; S.events = keepEvents;
+      if (!initial && !changed && !eventsChanged) return;
+      if (form && form.mode === "edit" && !S.events.some(e => e.id === form.id)) form = null;   // deleted elsewhere
+      applyAppearance();
+      render();
+      if (boot) boot.scheduleResize();
+    }
+
+    darkQuery.addEventListener("change", () => { if (S.theme === "auto") applyAppearance(); });
+
+    // ---------- keep "today" correct across midnight and sleep ----------
+    function rollover() {
+      const now = K.todayStr();
+      if (now === today) return;
+      const old = today;
+      today = now;
+      if (selected === old && !form) showDate(today);
+      render();
+    }
+    function scheduleMidnight() {
+      const n = new Date();
+      const next = new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1, 0, 0, 2);
+      setTimeout(() => { rollover(); scheduleMidnight(); }, next - n);
+    }
+    setInterval(rollover, 60000);   // also catches waking from sleep
+    scheduleMidnight();
+
+    applyAppearance();
+    render();
+    boot = WC.bootstrap({ id: "calendar", frame: document.getElementById("frame"), card, onSettings, allowClose: () => !form });
+  </script>
+</body>
+</html>

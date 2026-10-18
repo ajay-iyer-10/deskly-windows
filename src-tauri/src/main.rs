@@ -63,6 +63,13 @@ const WIDGETS: &[WidgetDef] = &[
         size: (420.0, 420.0),
         position: (100.0, 470.0),
     },
+    WidgetDef {
+        id: "calendar",
+        title: "Deskly Calendar",
+        url: "widgets/calendar.html",
+        size: (380.0, 560.0),
+        position: (480.0, 520.0),
+    },
 ];
 
 fn def_for(id: &str) -> Result<&'static WidgetDef, String> {
@@ -132,12 +139,31 @@ fn config_path(app: &tauri::AppHandle) -> PathBuf {
 }
 
 fn load_state(path: &PathBuf) -> AppState {
-    let mut state: AppState = fs::read_to_string(path)
-        .ok()
-        .and_then(|s| serde_json::from_str(&s).ok())
-        .unwrap_or_default();
-    state.migrate();
-    state
+    // no file yet = first run
+    let text = match fs::read_to_string(path) {
+        Ok(t) => t,
+        Err(_) => return AppState::default(),
+    };
+    match serde_json::from_str::<AppState>(&text) {
+        Ok(mut state) => {
+            state.migrate();
+            state
+        }
+        Err(e) => {
+            // The file exists but can't be read. Keep a copy before the next save
+            // replaces it, so user data (like calendar events) can be recovered.
+            eprintln!("[deskly] state file unreadable ({e}); saved a copy as widgets_state.corrupt.json");
+            let _ = fs::copy(path, path.with_extension("corrupt.json"));
+            AppState::default()
+        }
+    }
+}
+
+// Write to a temp file, then swap it in, so a crash mid-write can't leave a half-written state file.
+fn write_atomic(path: &PathBuf, contents: &str) -> std::io::Result<()> {
+    let tmp = path.with_extension("json.tmp");
+    fs::write(&tmp, contents)?;
+    fs::rename(&tmp, path)
 }
 
 fn read_state(app: &tauri::AppHandle) -> AppState {
@@ -151,7 +177,9 @@ fn update_state<R>(app: &tauri::AppHandle, f: impl FnOnce(&mut AppState) -> R) -
     let mut state = load_state(&path);
     let out = f(&mut state);
     if let Ok(json) = serde_json::to_string_pretty(&state) {
-        let _ = fs::write(&path, json);
+        if let Err(e) = write_atomic(&path, &json) {
+            eprintln!("[deskly] failed to save state: {e}");
+        }
     }
     out
 }
@@ -172,6 +200,24 @@ fn merge_json(base: &mut Value, patch: &Value) {
         for (k, v) in p {
             b.insert(k.clone(), v.clone());
         }
+    }
+}
+
+// "Reset to defaults" clears a widget's settings but keeps the listed keys, so
+// user-created content (the calendar's events) is never wiped by a reset.
+fn reset_settings(old: Option<Value>, keep: &[String]) -> Option<Value> {
+    let mut kept = serde_json::Map::new();
+    if let Some(Value::Object(o)) = old {
+        for k in keep {
+            if let Some(v) = o.get(k) {
+                kept.insert(k.clone(), v.clone());
+            }
+        }
+    }
+    if kept.is_empty() {
+        None
+    } else {
+        Some(Value::Object(kept))
     }
 }
 
@@ -352,15 +398,18 @@ async fn patch_widget_settings(app: tauri::AppHandle, id: String, patch: Value) 
 }
 
 #[tauri::command]
-async fn reset_widget_settings(app: tauri::AppHandle, id: String) -> Result<Value, String> {
+async fn reset_widget_settings(app: tauri::AppHandle, id: String, keep: Option<Vec<String>>) -> Result<Value, String> {
     let def = def_for(&id)?;
-    update_widget(&app, def.id, |w| w.settings = None);
-    let empty = json!({});
+    let keep = keep.unwrap_or_default();
+    let remaining = update_widget(&app, def.id, |w| {
+        w.settings = reset_settings(w.settings.take(), &keep);
+        w.settings.clone().unwrap_or_else(|| json!({}))
+    });
     let _ = app.emit(
         "widget-settings",
-        json!({ "id": def.id, "settings": empty.clone(), "reset": true }),
+        json!({ "id": def.id, "settings": remaining.clone(), "reset": true }),
     );
-    Ok(empty)
+    Ok(remaining)
 }
 
 // Called by a widget whenever its content size changes.
